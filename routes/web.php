@@ -10,11 +10,12 @@ Route::middleware('guest')->group(function () {
     Route::get('/', fn() => redirect()->route('login'));
 });
 
-Route::middleware(['auth', 'two-factor'])->group(function () {
+Route::middleware(['auth', 'App\Http\Middleware\EnsureTwoFactorIsConfirmed'])->group(function () {
     Route::view('/contacts', 'contacts')->name('contacts');
     Route::get('/contacts/search', [ContactSearchController::class, 'search'])->name('contacts.search');
     Route::view('/integration/waiting', 'integration-waiting')->name('integration.waiting');
     Route::view('/telegram/connect', 'telegram-connect')->name('telegram.connect.form');
+    Route::view('/profile', 'profile')->name('profile');
 
     Route::get('/dashboard', fn() => redirect()->route('contacts'))->name('dashboard');
 
