@@ -10,7 +10,7 @@ Route::middleware('guest')->group(function () {
     Route::get('/', fn() => redirect()->route('login'));
 });
 
-Route::middleware(['auth', 'App\Http\Middleware\EnsureTwoFactorIsConfirmed'])->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\RequireTwoFactorAuth::class])->group(function () {
     Route::view('/contacts', 'contacts')->name('contacts');
     Route::get('/contacts/search', [ContactSearchController::class, 'search'])->name('contacts.search');
     Route::view('/integration/waiting', 'integration-waiting')->name('integration.waiting');
@@ -25,11 +25,9 @@ Route::middleware(['auth', 'App\Http\Middleware\EnsureTwoFactorIsConfirmed'])->g
     });
 
     Route::post('/telegram/connect', [TelegramController::class, 'connect'])->name('telegram.connect');
-});
 
-// 2FA management route (without 2FA middleware to allow setup)
-Route::get('/two-factor', \App\Livewire\TwoFactor\EnableTwoFactor::class)
-    ->middleware(['auth'])
-    ->name('two-factor.index');
+    // Two-Factor Authentication Settings
+    Route::get('/two-factor', \App\Livewire\TwoFactorAuthentication::class)->name('two-factor.settings');
+});
 
 require __DIR__.'/auth.php';

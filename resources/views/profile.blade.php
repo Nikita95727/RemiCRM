@@ -34,36 +34,27 @@
             <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
                 <div class="max-w-xl">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Two-Factor Authentication</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">2FA Status</label>
-                            <p class="mt-1 text-sm text-gray-900">
-                                @if(auth()->user()->hasEnabledTwoFactorAuthentication())
-                                    <span class="text-green-600 font-medium">Enabled</span>
-                                @else
-                                    <span class="text-red-600 font-medium">Disabled</span>
-                                @endif
-                            </p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">2FA Confirmed</label>
-                            <p class="mt-1 text-sm text-gray-900">
-                                @if(auth()->user()->hasConfirmedTwoFactorAuthentication())
-                                    <span class="text-green-600 font-medium">Confirmed</span>
-                                @else
-                                    <span class="text-red-600 font-medium">Not Confirmed</span>
-                                @endif
-                            </p>
-                        </div>
-                        <div class="pt-4">
-                            <a href="{{ route('two-factor.index') }}" 
-                               class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                                Manage Two-Factor Authentication
-                            </a>
-                        </div>
-                    </div>
+                    <p class="text-sm text-gray-600 mb-4">
+                        @if(auth()->user()->hasTwoFactorEnabled())
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Enabled
+                            </span>
+                        @else
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Disabled
+                            </span>
+                        @endif
+                    </p>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Add additional security to your account using two-factor authentication.
+                    </p>
+                    <a href="{{ route('two-factor.settings') }}" 
+                       class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                        Manage Two-Factor Authentication
+                    </a>
                 </div>
             </div>
+
         </div>
     </div>
 </x-app-layout>
