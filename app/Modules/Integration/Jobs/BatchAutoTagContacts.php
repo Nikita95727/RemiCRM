@@ -173,13 +173,27 @@ class BatchAutoTagContacts implements ShouldQueue
                 default => [],
             };
 
-            // For Gmail or if no messages found, skip tagging
+            // For Gmail or if no messages found, try fallback tagging by name
             if (empty($messages['messages']) && $this->account->provider->value !== 'google_oauth') {
-                Log::debug('No messages found for contact', [
+                Log::debug('No messages found for contact, trying fallback tagging by name', [
                     'contact_id' => $contact->id,
                     'provider' => $this->account->provider->value,
                     'total_messages' => $messages['total'] ?? 0,
                 ]);
+                
+                // Try to tag based on contact name or username as fallback
+                $tag = $this->generateFallbackTag($contact);
+                if ($tag) {
+                    $contact->update(['tags' => [$tag]]);
+                    Log::debug('✅ Contact tagged by fallback (name-based)', [
+                        'contact_id' => $contact->id,
+                        'contact_name' => $contact->name,
+                        'tag' => $tag,
+                        'method' => 'fallback',
+                    ]);
+                    return true;
+                }
+                
                 return false;
             }
 
@@ -252,5 +266,62 @@ class BatchAutoTagContacts implements ShouldQueue
 
         // Default based on domain type
         return $businessDomains[$domain] ?? 'business';
+    }
+
+    /**
+     * Generate fallback tag based on contact name when no messages available
+     * Uses keyword matching on contact name/username
+     */
+    private function generateFallbackTag(Contact $contact): ?string
+    {
+        $name = mb_strtolower($contact->name, 'UTF-8');
+        
+        // Banking keywords
+        if (preg_match('/(bank|mono|privat|pumb|raiff|alpha|finance|wallet|pay)/ui', $name)) {
+            return 'banking';
+        }
+        
+        // Crypto keywords
+        if (preg_match('/(crypto|bitcoin|btc|eth|coin|token|blockchain|ton|pocket|hot|cold)/ui', $name)) {
+            return 'crypto';
+        }
+        
+        // Gaming keywords
+        if (preg_match('/(game|gaming|poker|casino|play|pixel|hamster|tap|clicker)/ui', $name)) {
+            return 'gaming';
+        }
+        
+        // Business keywords
+        if (preg_match('/(llc|ltd|inc|corp|company|group|team|support|service|official)/ui', $name)) {
+            return 'business';
+        }
+        
+        // Bot keywords
+        if (preg_match('/(bot|_bot|assistant|helper|notify)/ui', $name)) {
+            return 'bot';
+        }
+        
+        // Technology keywords
+        if (preg_match('/(dev|tech|code|api|software|app|digital)/ui', $name)) {
+            return 'technology';
+        }
+        
+        // Advertising keywords
+        if (preg_match('/(ad|ads|promo|marketing|campaign|advertising)/ui', $name)) {
+            return 'advertising';
+        }
+        
+        // If contains @username format or ends with common messenger patterns, likely personal
+        if (preg_match('/^@|^[a-z0-9_]+$/ui', $name) && !str_contains($name, ' ')) {
+            return 'social';
+        }
+        
+        // If has emoji or special characters, likely personal
+        if (preg_match('/[\x{1F300}-\x{1F9FF}]|❤️|♣️|♠️|♥️|♦️/u', $name)) {
+            return 'social';
+        }
+        
+        // Default: no tag (better than incorrect tag)
+        return null;
     }
 }
