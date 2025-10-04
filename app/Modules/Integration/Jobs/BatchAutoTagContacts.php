@@ -166,9 +166,9 @@ class BatchAutoTagContacts implements ShouldQueue
             $chatId = $integration->external_id;
             $accountId = $this->account->unipile_account_id;
 
-            // Try to get messages from the chat/email
+            // Try to get messages from the chat/email using optimized method
             $messages = match ($this->account->provider->value) {
-                'telegram', 'whatsapp' => $unipileService->getAllChatMessages($accountId, $chatId, 500, 100), // Reduced for memory efficiency
+                'telegram', 'whatsapp' => $unipileService->getMessagesForAnalysis($accountId, $chatId, 100), // Memory-efficient with cursor pagination
                 'google_oauth' => [], // Gmail doesn't have chat messages in the same format
                 default => [],
             };
