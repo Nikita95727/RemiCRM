@@ -20,8 +20,16 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        // Принудительный редирект на contacts
-        $this->redirect(route('contacts'), navigate: false);
+        $user = auth()->user();
+        
+        // Check if user has 2FA enabled
+        if ($user && $user->hasEnabledTwoFactorAuthentication()) {
+            // Redirect to 2FA challenge page
+            $this->redirect(route('two-factor.login'), navigate: false);
+        } else {
+            // Normal redirect to contacts
+            $this->redirect(route('contacts'), navigate: false);
+        }
     }
 }; ?>
 

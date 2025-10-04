@@ -89,6 +89,11 @@
                                         Profile
                                     </a>
                                     
+                                    <a href="{{ route('two-factor.index') }}" 
+                                       class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors duration-200">
+                                        Two-Factor Auth
+                                    </a>
+                                    
                                     <form method="POST" action="{{ route('logout') }}" class="block">
                                         @csrf
                                         <button type="submit" 

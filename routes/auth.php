@@ -16,6 +16,9 @@ Route::middleware('guest')->group(function () {
 
     Volt::route('reset-password/{token}', 'pages.auth.reset-password')
         ->name('password.reset');
+
+    Volt::route('two-factor/login', 'pages.auth.two-factor-challenge')
+        ->name('two-factor.login');
 });
 
 Route::middleware('auth')->group(function () {
@@ -28,6 +31,9 @@ Route::middleware('auth')->group(function () {
 
     Volt::route('confirm-password', 'pages.auth.confirm-password')
         ->name('password.confirm');
+
+    Route::get('two-factor', \App\Livewire\TwoFactor\EnableTwoFactor::class)
+        ->name('two-factor.index');
 
     Route::post('logout', function () {
         auth()->logout();
