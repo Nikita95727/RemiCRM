@@ -23,7 +23,7 @@ class ConnectProviderRequest extends FormRequest
             'provider' => [
                 'required',
                 'string',
-                Rule::in(['telegram', 'whatsapp', 'gmail']),
+                Rule::in(['telegram', 'whatsapp', 'google_oauth']),
             ],
         ];
     }

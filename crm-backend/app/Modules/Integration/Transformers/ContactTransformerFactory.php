@@ -38,7 +38,7 @@ class ContactTransformerFactory
         $this->transformers = [
             'telegram' => new TelegramContactTransformer(),
             'whatsapp' => new WhatsAppContactTransformer(),
-            'gmail' => new GmailContactTransformer(),
+            'google_oauth' => new GmailContactTransformer(),
         ];
     }
 }

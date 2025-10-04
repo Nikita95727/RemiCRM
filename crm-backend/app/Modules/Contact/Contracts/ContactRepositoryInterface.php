@@ -50,4 +50,43 @@ interface ContactRepositoryInterface
      * @return Collection<int, Contact>
      */
     public function findByUserAndSources(User $user, array $sources): Collection;
+
+    /**
+     * Find contact by ID for a specific user
+     */
+    public function findByUserAndId(User $user, int $contactId): ?Contact;
+
+    /**
+     * Get paginated contacts with search and filters
+     * @param array<string> $sourceFilters
+     * @return LengthAwarePaginator<int, Contact>
+     */
+    public function paginateWithFilters(User $user, ?string $search = null, array $sourceFilters = [], string $sortBy = 'created_at', string $sortDirection = 'desc', int $perPage = 15): LengthAwarePaginator;
+
+    /**
+     * Get contact statistics by source
+     * @return array<string, int>
+     */
+    public function getContactStatsByUser(User $user): array;
+
+    /**
+     * Find contacts without tags for a specific account
+     * @return Collection<int, Contact>
+     */
+    public function findUntaggedByAccount(int $accountId, int $userId): Collection;
+
+    /**
+     * Find contact by email or phone for user
+     */
+    public function findByEmailOrPhone(User $user, ?string $email, ?string $phone): ?Contact;
+
+    /**
+     * Find contact by name for user (fallback)
+     */
+    public function findByName(User $user, string $name): ?Contact;
+
+    /**
+     * Find contact by provider_id for user
+     */
+    public function findByProviderId(User $user, string $providerId): ?Contact;
 }

@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('contacts', function (Blueprint $table) {
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('provider_id')->nullable()->after('notes');
+            $table->index('provider_id', 'contacts_provider_id_index');
         });
     }
 
@@ -22,8 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('contacts', function (Blueprint $table) {
-            $table->dropForeign(['user_id']);
-            $table->dropColumn('user_id');
+            $table->dropIndex('contacts_provider_id_index');
+            $table->dropColumn('provider_id');
         });
     }
 };

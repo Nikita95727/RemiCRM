@@ -41,7 +41,7 @@ class GmailContactTransformer implements ContactTransformerInterface
 
     public function getProvider(): string
     {
-        return 'gmail';
+        return 'google_oauth';
     }
 
     /**
@@ -49,33 +49,45 @@ class GmailContactTransformer implements ContactTransformerInterface
      */
     private function transformSingleItem(array $item, int $userId): ?CreateContactDTO
     {
-        $email = $item['from'] ?? $item['to'] ?? $item['email'] ?? null;
-        $name = $item['from_name'] ?? $item['sender_name'] ?? $item['name'] ?? null;
+        // Extract email from from_attendee or to_attendees
+        $email = null;
+        $name = null;
+
+        // Try from_attendee first
+        if (isset($item['from_attendee']['identifier'])) {
+            $email = $item['from_attendee']['identifier'];
+            $name = $item['from_attendee']['display_name'] ?? null;
+        }
+        
+        // If no from_attendee, try first to_attendee
+        if (!$email && isset($item['to_attendees'][0]['identifier'])) {
+            $email = $item['to_attendees'][0]['identifier'];
+            $name = $item['to_attendees'][0]['display_name'] ?? null;
+        }
 
         if (!$email) {
             return null;
         }
 
         // Gmail-specific logic: extract name from email if no name provided
-        if (!$name) {
+        if (!$name || $name === $email) {
             $name = $this->extractNameFromEmail($email);
         }
 
         $subject = $item['subject'] ?? '';
-        $timestamp = $item['timestamp'] ?? $item['date'] ?? null;
-        $messageCount = $item['thread_length'] ?? 1;
+        $timestamp = $item['date'] ?? null;
+        $messageCount = 1; // Gmail API doesn't provide thread length in this format
 
         $notes = sprintf(
-            'Imported from Gmail | Messages: %d%s%s',
-            $messageCount,
-            $timestamp ? ' | Last activity: ' . $timestamp : '',
-            $subject ? ' | Last subject: ' . substr($subject, 0, 50) : ''
+            'Imported from Gmail | Subject: %s%s',
+            $subject ? substr($subject, 0, 100) : 'No subject',
+            $timestamp ? ' | Date: ' . $timestamp : ''
         );
 
         return CreateContactDTO::fromSyncData(
             userId: $userId,
             name: $name,
-            provider: 'gmail',
+            provider: 'google_oauth',
             notes: $notes,
             email: $email
         );

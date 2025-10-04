@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Contact\Livewire;
 
+use App\Modules\Contact\Contracts\ContactRepositoryInterface;
 use App\Modules\Contact\Models\Contact;
 use Livewire\Component;
 
@@ -35,11 +36,23 @@ class GlobalSearch extends Component
             return;
         }
 
+        \Log::info('GlobalSearch: updatedSearch called', [
+            'search_term' => $this->search,
+            'user_id' => auth()->id(),
+        ]);
+
         try {
-            $contacts = Contact::where('user_id', auth()->id())
-                ->search(trim($this->search))
-                ->limit(8)
-                ->get();
+            $user = auth()->user();
+            if (!$user) {
+                $this->results = [];
+                return;
+            }
+
+            /** @var ContactRepositoryInterface $contactRepository */
+            $contactRepository = app(ContactRepositoryInterface::class);
+            
+            $contacts = $contactRepository->search($user, trim($this->search))
+                ->take(8);
 
             $results = [];
             foreach ($contacts as $contact) {
@@ -67,6 +80,11 @@ class GlobalSearch extends Component
 
     public function openModal(): void
     {
+        \Log::info('GlobalSearch: openModal called', [
+            'user_id' => auth()->id(),
+            'is_authenticated' => auth()->check(),
+        ]);
+        
         $this->isOpen = true;
         $this->search = '';
         $this->results = [];
@@ -117,6 +135,13 @@ class GlobalSearch extends Component
      */
     public function render()
     {
+        \Log::info('GlobalSearch: render called', [
+            'user_id' => auth()->id(),
+            'is_authenticated' => auth()->check(),
+            'search' => $this->search,
+            'results_count' => count($this->results),
+        ]);
+        
         return view('livewire.contact.global-search');
     }
 }

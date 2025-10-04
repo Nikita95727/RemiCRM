@@ -58,7 +58,7 @@ class BasicFunctionalityTest extends TestCase
         Contact::create([
             'user_id' => $this->user->id,
             'name' => 'Jane Business',
-            'sources' => ['gmail'],
+            'sources' => ['google_oauth'],
             'tags' => ['business'],
         ]);
 
@@ -109,11 +109,11 @@ class BasicFunctionalityTest extends TestCase
         $contact = Contact::create([
             'user_id' => $this->user->id,
             'name' => 'Multi-Source Contact',
-            'sources' => ['telegram', 'whatsapp', 'gmail'],
+            'sources' => ['telegram', 'whatsapp', 'google_oauth'],
         ]);
 
         $this->assertIsArray($contact->sources);
-        $this->assertEquals(['telegram', 'whatsapp', 'gmail'], $contact->sources);
+        $this->assertEquals(['telegram', 'whatsapp', 'google_oauth'], $contact->sources);
     }
 
     /** @test */

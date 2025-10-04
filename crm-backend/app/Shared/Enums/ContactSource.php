@@ -10,7 +10,7 @@ enum ContactSource: string
     case MANUAL = 'manual'; // Alias for CRM for backward compatibility
     case TELEGRAM = 'telegram';
     case WHATSAPP = 'whatsapp';
-    case GMAIL = 'gmail';
+    case GOOGLE_OAUTH = 'google_oauth';
 
     public function getLabel(): string
     {
@@ -19,7 +19,7 @@ enum ContactSource: string
             self::MANUAL => 'Manual',
             self::TELEGRAM => 'Telegram',
             self::WHATSAPP => 'WhatsApp',
-            self::GMAIL => 'Gmail',
+            self::GOOGLE_OAUTH => 'Gmail',
         };
     }
 
@@ -56,7 +56,7 @@ enum ContactSource: string
             self::MANUAL => 'bg-blue-100 text-blue-800',
             self::TELEGRAM => 'bg-sky-100 text-sky-800',
             self::WHATSAPP => 'bg-green-100 text-green-800',
-            self::GMAIL => 'bg-red-100 text-red-800',
+            self::GOOGLE_OAUTH => 'bg-red-100 text-red-800',
         };
     }
 
@@ -70,7 +70,7 @@ enum ContactSource: string
             // WhatsApp phone icon
             self::WHATSAPP => 'M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z',
             // Gmail envelope icon
-            self::GMAIL => 'M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z',
+            self::GOOGLE_OAUTH => 'M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z',
         };
     }
 }

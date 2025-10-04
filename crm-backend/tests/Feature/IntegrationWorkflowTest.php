@@ -222,7 +222,7 @@ class IntegrationWorkflowTest extends TestCase
 
         Http::fake();
 
-        $providers = ['telegram', 'whatsapp', 'gmail'];
+        $providers = ['telegram', 'whatsapp', 'google_oauth'];
 
         foreach ($providers as $provider) {
 

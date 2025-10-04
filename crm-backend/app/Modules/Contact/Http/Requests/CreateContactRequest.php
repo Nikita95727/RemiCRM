@@ -42,7 +42,7 @@ class CreateContactRequest extends FormRequest
             ],
             'sources.*' => [
                 'string',
-                Rule::in(['crm', 'telegram', 'whatsapp', 'gmail']),
+                Rule::in(['crm', 'telegram', 'whatsapp', 'google_oauth']),
             ],
             'notes' => [
                 'nullable',

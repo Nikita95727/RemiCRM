@@ -21,7 +21,7 @@ class IntegratedAccountFactory extends Factory
     {
         return [
             'user_id' => 1,
-            'provider' => $this->faker->randomElement(['telegram', 'whatsapp', 'gmail']),
+            'provider' => $this->faker->randomElement(['telegram', 'whatsapp', 'google_oauth']),
             'account_name' => $this->faker->userName(),
             'unipile_account_id' => $this->faker->uuid(),
             'access_token' => $this->faker->sha256(),
@@ -59,7 +59,7 @@ class IntegratedAccountFactory extends Factory
     public function gmail(): static
     {
         return $this->state(fn (array $attributes) => [
-            'provider' => 'gmail',
+            'provider' => 'google_oauth',
             'account_name' => $this->faker->safeEmail(),
         ]);
     }

@@ -77,6 +77,7 @@ class WhatsAppContactTransformer implements ContactTransformerInterface
     private function transformSingleChat(array $chat, int $userId): ?CreateContactDTO
     {
         $providerId = $chat['attendee_provider_id'] ?? null;
+        $chatId = $chat['id'] ?? null;  // THIS is the ID needed for fetching messages!
         $name = $chat['name'] ?? null;
 
         if (!$providerId) {
@@ -147,7 +148,8 @@ class WhatsAppContactTransformer implements ContactTransformerInterface
             notes: $notes,
             email: null,
             phone: $phone,
-            providerId: $providerId
+            providerId: $providerId,
+            chatId: $chatId  // Pass the actual chat ID for message fetching
         );
     }
 }

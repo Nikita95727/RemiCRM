@@ -39,7 +39,7 @@ class ContactForm extends Component
     /** @var array<string, string> */
     protected $rules = [
         'name' => 'required|string|max:255',
-        'phone' => 'nullable|string|max:20',
+        'phone' => 'nullable|string|max:20|regex:/^[0-9+\-\(\)\s]*$/',
         'email' => 'nullable|email|max:255',
         'selectedSources' => 'required|array|min:1',
         'selectedSources.*' => 'in:crm,telegram,whatsapp,gmail',
@@ -52,6 +52,7 @@ class ContactForm extends Component
         'name.required' => 'Name is required.',
         'name.max' => 'Name cannot be longer than 255 characters.',
         'phone.max' => 'Phone cannot be longer than 20 characters.',
+        'phone.regex' => 'Phone number can only contain digits, +, -, (, ), and spaces.',
         'email.email' => 'Please enter a valid email address.',
         'email.max' => 'Email cannot be longer than 255 characters.',
         'selectedSources.required' => 'At least one source is required.',

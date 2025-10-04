@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Contact\Livewire;
 
+use App\Models\ImportStatus;
+use App\Modules\Contact\Contracts\ContactRepositoryInterface;
 use App\Modules\Contact\Models\Contact;
 use App\Shared\Enums\ContactSource;
 use Livewire\Component;
@@ -28,6 +30,8 @@ class ContactsList extends Component
 
     public string $contactToDeleteName = '';
 
+    public ?Contact $viewingContact = null;
+
     public bool $isPolling = false;
 
     private int $lastContactCount = 0;
@@ -43,6 +47,9 @@ class ContactsList extends Component
         'refreshContacts' => '$refresh',
         'contactSaved' => 'handleContactSaved',
         'contactsSynced' => '$refresh',
+        'start-polling' => 'startPolling',
+        'check-new-contacts' => 'checkForNewContacts',
+        'stop-polling' => 'stopPolling',
     ];
 
     public function updatedSearch(): void
@@ -71,19 +78,64 @@ class ContactsList extends Component
      */
     public function getContactsProperty()
     {
-        $query = Contact::query()
-            ->where('user_id', auth()->id())
-            ->when($this->search, fn ($q) => $q->search($this->search))
-            ->when(! empty($this->sourceFilters), function ($q) {
-                $q->where(function ($subQuery) {
-                    foreach ($this->sourceFilters as $source) {
-                        $subQuery->orWhereJsonContains('sources', $source);
-                    }
-                });
-            })
-            ->orderBy($this->sortBy, $this->sortDirection);
+        $user = auth()->user();
+        
+        if (!$user) {
+            return Contact::query()->where('id', 0)->paginate(15); // Empty result
+        }
 
-        return $query->paginate(15);
+        /** @var ContactRepositoryInterface $contactRepository */
+        $contactRepository = app(ContactRepositoryInterface::class);
+
+        return $contactRepository->paginateWithFilters(
+            $user,
+            $this->search ?: null,
+            $this->sourceFilters,
+            $this->sortBy,
+            $this->sortDirection,
+            15
+        );
+    }
+
+    /**
+     * Get contact count by source for stats
+     */
+    public function getContactStatsProperty(): array
+    {
+        $user = auth()->user();
+        
+        if (!$user) {
+            return [
+                'crm' => 0,
+                'telegram' => 0,
+                'whatsapp' => 0,
+                'gmail' => 0,
+                'total' => 0
+            ];
+        }
+
+        /** @var ContactRepositoryInterface $contactRepository */
+        $contactRepository = app(ContactRepositoryInterface::class);
+
+        return $contactRepository->getContactStatsByUser($user);
+    }
+
+    /**
+     * Get active import status for current user
+     */
+    public function getImportStatusProperty(): ?ImportStatus
+    {
+        $user = auth()->user();
+        
+        if (!$user) {
+            return null;
+        }
+
+        return ImportStatus::where('user_id', $user->id)
+            ->whereIn('status', ['importing', 'tagging', 'completed'])
+            ->where('updated_at', '>=', now()->subSeconds(30)) // Show completed status for max 30 seconds
+            ->orderBy('updated_at', 'desc')
+            ->first();
     }
 
     public function openConnectModal(): void
@@ -94,6 +146,29 @@ class ContactsList extends Component
     public function editContact(int $contactId): void
     {
         $this->dispatch('editContact', $contactId);
+    }
+
+    public function viewContact(int $contactId): void
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return;
+        }
+
+        /** @var ContactRepositoryInterface $contactRepository */
+        $contactRepository = app(ContactRepositoryInterface::class);
+        
+        $this->viewingContact = $contactRepository->findByUserAndId($user, $contactId);
+    }
+
+    public function closeViewModal(): void
+    {
+        $this->viewingContact = null;
+    }
+
+    public function openContactForm(): void
+    {
+        $this->dispatch('openContactForm');
     }
 
     public function handleContactSaved(string $message): void
@@ -139,8 +214,13 @@ class ContactsList extends Component
 
     public function startPolling(): void
     {
+        $userId = auth()->id();
+        if (!$userId) {
+            return;
+        }
+        
         $this->isPolling = true;
-        $this->lastContactCount = Contact::where('user_id', auth()->id())->count();
+        $this->lastContactCount = Contact::where('user_id', $userId)->count();
     }
 
     public function stopPolling(): void
@@ -154,7 +234,12 @@ class ContactsList extends Component
             return;
         }
 
-        $currentCount = Contact::where('user_id', auth()->id())->count();
+        $userId = auth()->id();
+        if (!$userId) {
+            return;
+        }
+
+        $currentCount = Contact::where('user_id', $userId)->count();
 
         if ($currentCount > $this->lastContactCount) {
             $this->lastContactCount = $currentCount;

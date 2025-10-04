@@ -26,7 +26,7 @@ class ContactFactory extends Factory
             'sources' => $this->faker->randomElement([
                 ['telegram'],
                 ['whatsapp'],
-                ['gmail'],
+                ['google_oauth'],
                 ['telegram', 'whatsapp'],
                 ['crm'],
             ]),
@@ -56,7 +56,7 @@ class ContactFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'tags' => ['business'],
-            'sources' => ['gmail'],
+            'sources' => ['google_oauth'],
         ]);
     }
 
@@ -98,7 +98,7 @@ class ContactFactory extends Factory
     public function fromGmail(): static
     {
         return $this->state(fn (array $attributes) => [
-            'sources' => ['gmail'],
+            'sources' => ['google_oauth'],
             'email' => $this->faker->safeEmail(),
         ]);
     }

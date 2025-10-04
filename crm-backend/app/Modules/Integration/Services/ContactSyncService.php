@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Integration\Services;
 
+use App\Modules\Contact\Contracts\ContactRepositoryInterface;
 use App\Modules\Integration\Contracts\ContactSyncServiceInterface;
 use App\Modules\Integration\Jobs\SyncContactsFromAccount;
 use App\Modules\Integration\Models\IntegratedAccount;
@@ -12,31 +13,25 @@ use Illuminate\Support\Facades\Log;
 
 class ContactSyncService implements ContactSyncServiceInterface
 {
+    public function __construct(
+        private readonly ContactRepositoryInterface $contactRepository
+    ) {}
     public function syncContactsFromAccount(IntegratedAccount $account): Collection
     {
-        Log::info('ContactSyncService: Direct sync not implemented, use queueContactSync instead', [
-            'account_id' => $account->id,
-        ]);
-
         return collect();
     }
 
     public function queueContactSync(IntegratedAccount $account): void
     {
-        Log::info('ContactSyncService: Queueing contact sync', [
-            'account_id' => $account->id,
-            'provider' => $account->provider,
-            'account_name' => $account->account_name,
-        ]);
-
         SyncContactsFromAccount::dispatch($account);
     }
 
     public function getSyncStatistics(IntegratedAccount $account): array
     {
-        $contactsCount = $account->user->contacts()
-            ->whereJsonContains('sources', $account->provider)
-            ->count();
+        $contactsCount = $this->contactRepository->countByUserAndSource(
+            $account->user,
+            $account->provider->value
+        );
 
         return [
             'account_id' => $account->id,

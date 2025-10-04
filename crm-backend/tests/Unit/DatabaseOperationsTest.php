@@ -276,7 +276,7 @@ class DatabaseOperationsTest extends TestCase
 
         $businessContact = Contact::factory()->business()->create();
         $this->assertContains('business', $businessContact->tags);
-        $this->assertContains('gmail', $businessContact->sources);
+        $this->assertContains('google_oauth', $businessContact->sources);
 
         $untaggedContact = Contact::factory()->untagged()->create();
         $this->assertNull($untaggedContact->tags);
@@ -293,7 +293,7 @@ class DatabaseOperationsTest extends TestCase
         $this->assertEquals('whatsapp', $whatsappAccount->provider);
 
         $gmailAccount = IntegratedAccount::factory()->gmail()->create();
-        $this->assertEquals('gmail', $gmailAccount->provider);
+        $this->assertEquals('google_oauth', $gmailAccount->provider->value);
 
         $neverSynced = IntegratedAccount::factory()->neverSynced()->create();
         $this->assertNull($neverSynced->last_sync_at);

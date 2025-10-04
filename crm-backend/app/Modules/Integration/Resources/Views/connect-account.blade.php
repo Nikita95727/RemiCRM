@@ -41,6 +41,7 @@
                         <div class="text-center mb-6">
                             <h4 class="text-lg font-bold text-slate-900 mb-2">Select Platform</h4>
                             <p class="text-slate-600">Choose which platform you'd like to connect to your CRM</p>
+                            
                         </div>
 
                         <div class="grid grid-cols-1 gap-4">
@@ -85,75 +86,8 @@
                                                     <div class="flex flex-wrap gap-2">
                                                         @foreach($connectedAccounts[$key] as $account)
                                                             <div class="group relative">
-                                                                @php
-                                                                    // Generate account name for avatar
-                                                                    $accountName = $account['account_name'] ?? $account['name'] ?? 'Unknown';
-                                                                    
-                                                                    // Smart name generation
-                                                                    $displayName = $accountName;
-                                                                    
-                                                                    // Try to find a real name from CRM contacts
-                                                                    if (preg_match('/^\+?\d+/', $accountName)) {
-                                                                        // This looks like a phone number - try to find contact by phone
-                                                                        $contact = \App\Modules\Contact\Models\Contact::where('user_id', auth()->id())
-                                                                            ->where('phone', 'like', '%' . preg_replace('/[^\d]/', '', $accountName) . '%')
-                                                                            ->first();
-                                                                        
-                                                                        if ($contact) {
-                                                                            $displayName = $contact->name;
-                                                                        } else {
-                                                                            // For phone numbers, show "ME" (current user)
-                                                                            $displayName = 'ME';
-                                                                        }
-                                                                    } elseif (preg_match('/^\d+$/', $accountName)) {
-                                                                        // Pure number (like Telegram user ID)
-                                                                        $contact = \App\Modules\Contact\Models\Contact::where('user_id', auth()->id())
-                                                                            ->whereJsonContains('sources', $key)
-                                                                            ->whereHas('integrations', function($q) use ($accountName) {
-                                                                                $q->where('external_id', $accountName);
-                                                                            })
-                                                                            ->first();
-                                                                        
-                                                                        if ($contact) {
-                                                                            $displayName = $contact->name;
-                                                                        } else {
-                                                                            $displayName = 'TG'; // Fallback for Telegram
-                                                                        }
-                                                                    }
-                                                                    
-                                                                    // Generate initials with Unicode support
-                                                                    $words = preg_split('/[\s\-_\.]+/u', $displayName);
-                                                                    $initials = '';
-                                                                    foreach ($words as $word) {
-                                                                        if (mb_strlen($word) > 0) {
-                                                                            $initials .= mb_strtoupper(mb_substr($word, 0, 1));
-                                                                        }
-                                                                        if (mb_strlen($initials) >= 2) break;
-                                                                    }
-                                                                    if (mb_strlen($initials) === 0) {
-                                                                        $initials = mb_strtoupper(mb_substr($displayName, 0, 2));
-                                                                    }
-                                                                    if (mb_strlen($initials) === 1) {
-                                                                        $initials .= mb_strtoupper(mb_substr($displayName, 1, 1));
-                                                                    }
-                                                                    
-                                                                    // Avatar colors
-                                                                    $colors = [
-                                                                        'from-blue-400 to-blue-600',
-                                                                        'from-green-400 to-green-600',
-                                                                        'from-purple-400 to-purple-600',
-                                                                        'from-pink-400 to-pink-600',
-                                                                        'from-indigo-400 to-indigo-600',
-                                                                        'from-yellow-400 to-yellow-600',
-                                                                        'from-red-400 to-red-600',
-                                                                        'from-teal-400 to-teal-600'
-                                                                    ];
-                                                                    $colorIndex = crc32($accountName) % count($colors);
-                                                                    $avatarColor = $colors[abs($colorIndex)];
-                                                                @endphp
-                                                                
-                                                                <div class="w-8 h-8 bg-gradient-to-r {{ $avatarColor }} rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-110">
-                                                                    <span class="text-slate-900 text-xs font-bold">{{ $initials }}</span>
+                                                                <div class="w-8 h-8 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-110">
+                                                                    <span class="text-white text-xs font-bold">{{ strtoupper(substr($account['name'], 0, 2)) }}</span>
                                                                 </div>
                                                                 <!-- Tooltip -->
                                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-black text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none shadow-xl border border-gray-300">
@@ -194,14 +128,4 @@
         </div>
     </div>
     @endif
-
-    <!-- JavaScript for External Redirects -->
-    <script>
-        document.addEventListener('livewire:initialized', () => {
-            Livewire.on('redirect-external', (event) => {
-                console.log('External redirect triggered:', event.url);
-                window.location.href = event.url;
-            });
-        });
-    </script>
 </div>

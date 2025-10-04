@@ -21,6 +21,7 @@ class Contact extends Model
         'notes',
         'tags',
         'user_id',
+        'provider_id',
     ];
 
     protected $casts = [
@@ -68,13 +69,16 @@ class Contact extends Model
             $q->where('name', 'LIKE', "%{$searchTerm}%")
                 ->orWhere('email', 'LIKE', "%{$searchTerm}%")
                 ->orWhere('phone', 'LIKE', "%{$searchTerm}%")
-                ->orWhere('notes', 'LIKE', "%{$searchTerm}%")
-                ->orWhereJsonContains('tags', $searchTerm);
+                ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+
+            // Search in tags JSON array - use LIKE for partial matches
+            $q->orWhere('tags', 'LIKE', "%\"{$searchTerm}\"%")
+              ->orWhere('tags', 'LIKE', "%{$searchTerm}%");
 
             // Search by source values and labels
             foreach (ContactSource::cases() as $source) {
                 if (stripos($source->getLabel(), $searchTerm) !== false || stripos($source->value, $searchTerm) !== false) {
-                    $q->orWhereJsonContains('sources', $source->value);
+                    $q->orWhere('sources', 'LIKE', "%\"{$source->value}\"%");
                 }
             }
         });

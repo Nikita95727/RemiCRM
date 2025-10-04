@@ -38,6 +38,71 @@
             </div>
         @endif
 
+        <!-- Import Progress Indicator -->
+        @if ($this->importStatus)
+            @php
+                $isCompleted = $this->importStatus->status === 'completed';
+                $bgColor = $isCompleted ? 'from-emerald-50 to-green-50' : 'from-blue-50 to-indigo-50';
+                $borderColor = $isCompleted ? 'border-emerald-200/60' : 'border-blue-200/60';
+                $iconBg = $isCompleted ? 'bg-emerald-100' : 'bg-blue-100';
+                $iconColor = $isCompleted ? 'text-emerald-600' : 'text-blue-600';
+                $textColor = $isCompleted ? 'text-emerald-900' : 'text-blue-900';
+                $subtextColor = $isCompleted ? 'text-emerald-700' : 'text-blue-700';
+                $badgeBg = $isCompleted ? 'bg-emerald-100/80' : 'bg-blue-100/80';
+                $badgeColor = $isCompleted ? 'text-emerald-600' : 'text-blue-600';
+                $progressColor = $isCompleted ? 'bg-emerald-200' : 'bg-blue-200';
+                $progressFillColor = $isCompleted ? 'bg-emerald-600' : 'bg-blue-600';
+            @endphp
+            <div class="mb-8 rounded-2xl bg-gradient-to-r {{ $bgColor }} border-2 {{ $borderColor }} p-6 shadow-lg backdrop-blur-sm"
+                 wire:poll.1s>
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-10 h-10 {{ $iconBg }} rounded-xl flex items-center justify-center">
+                            @if ($this->importStatus->status === 'importing')
+                                <svg class="h-6 w-6 {{ $iconColor }} animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            @elseif ($this->importStatus->status === 'completed')
+                                <svg class="h-6 w-6 {{ $iconColor }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            @else
+                                <svg class="h-6 w-6 {{ $iconColor }} animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <p class="text-base font-bold {{ $textColor }}">
+                            {{ $this->importStatus->status_message }}
+                        </p>
+                        <p class="text-sm {{ $subtextColor }} mt-1">
+                            {{ $this->importStatus->message ?? 'Processing...' }}
+                        </p>
+                        @if ($this->importStatus->total_items > 0)
+                            <div class="mt-3">
+                                <div class="flex justify-between text-xs {{ $iconColor }} mb-1">
+                                    <span>Progress</span>
+                                    <span>{{ $this->importStatus->processed_items }}/{{ $this->importStatus->total_items }}</span>
+                                </div>
+                                <div class="w-full {{ $progressColor }} rounded-full h-2">
+                                    <div class="{{ $progressFillColor }} h-2 rounded-full transition-all duration-300" 
+                                         style="width: {{ $this->importStatus->progress_percentage }}%"></div>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="ml-4">
+                        <div class="inline-flex rounded-xl {{ $badgeBg }} p-2 {{ $badgeColor }}">
+                            <span class="text-xs font-medium">{{ ucfirst($this->importStatus->provider) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <!-- Premium Header -->
         <div class="mb-8">
             <!-- Title Section -->
@@ -60,56 +125,69 @@
             <!-- Stats Cards and Add Button -->
             <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
                 <div class="flex-1">
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-slate-200/60 shadow-sm h-32 flex items-center">
-                            <div class="flex items-center space-x-4 w-full">
-                                <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="flex space-x-3">
+                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200/60 shadow-sm h-20 w-32 flex items-center flex-shrink-0">
+                            <div class="flex items-center space-x-2 w-full">
+                                <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-base font-semibold text-slate-600">Total</p>
-                                    <p class="text-2xl font-bold text-slate-900">{{ $contacts->total() ?? 0 }}</p>
+                                    <p class="text-xs font-semibold text-slate-600">Total</p>
+                                    <p class="text-lg font-bold text-slate-900">{{ $contacts->total() ?? 0 }}</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-slate-200/60 shadow-sm h-32 flex items-center">
-                            <div class="flex items-center space-x-4 w-full">
-                                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200/60 shadow-sm h-20 w-32 flex items-center flex-shrink-0">
+                            <div class="flex items-center space-x-2 w-full">
+                                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-base font-semibold text-slate-600">CRM</p>
-                                    <p class="text-2xl font-bold text-slate-900">{{ $contacts->filter(fn($c) => in_array('crm', $c->sources ?? []))->count() }}</p>
+                                    <p class="text-xs font-semibold text-slate-600">CRM</p>
+                                    <p class="text-lg font-bold text-slate-900">{{ $this->contactStats['crm'] }}</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-slate-200/60 shadow-sm h-32 flex items-center">
-                            <div class="flex items-center space-x-4 w-full">
-                                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200/60 shadow-sm h-20 w-32 flex items-center flex-shrink-0">
+                            <div class="flex items-center space-x-2 w-full">
+                                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-base font-semibold text-slate-600">Telegram</p>
-                                    <p class="text-2xl font-bold text-slate-900">{{ $contacts->filter(fn($c) => in_array('telegram', $c->sources ?? []))->count() }}</p>
+                                    <p class="text-xs font-semibold text-slate-600">Telegram</p>
+                                    <p class="text-lg font-bold text-slate-900">{{ $this->contactStats['telegram'] }}</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-slate-200/60 shadow-sm h-32 flex items-center">
-                            <div class="flex items-center space-x-4 w-full">
-                                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200/60 shadow-sm h-20 w-32 flex items-center flex-shrink-0">
+                            <div class="flex items-center space-x-2 w-full">
+                                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-base font-semibold text-slate-600">WhatsApp</p>
-                                    <p class="text-2xl font-bold text-slate-900">{{ $contacts->filter(fn($c) => in_array('whatsapp', $c->sources ?? []))->count() }}</p>
+                                    <p class="text-xs font-semibold text-slate-600">WhatsApp</p>
+                                    <p class="text-lg font-bold text-slate-900">{{ $this->contactStats['whatsapp'] }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200/60 shadow-sm h-20 w-32 flex items-center flex-shrink-0">
+                            <div class="flex items-center space-x-2 w-full">
+                                <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-600">Gmail</p>
+                                    <p class="text-lg font-bold text-slate-900">{{ $this->contactStats['gmail'] }}</p>
                                 </div>
                             </div>
                         </div>
@@ -199,7 +277,7 @@
                                     @endif
                                 </div>
                             </div>
-                        </button>
+                </button>
                     </div>
                 </div>
             </div>
@@ -300,7 +378,7 @@
                                                             </div>
                                                             {{ $sourceObj->getLabel() }}
                                                         </span>
-                                                    @endforeach
+                            @endforeach
                                                 </div>
                                             @endif
                                         </div>
@@ -309,8 +387,8 @@
                                         </svg>
                                     </div>
                                 </button>
-                            </div>
-                        </div>
+                    </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -331,7 +409,7 @@
                                     <span class="text-lg font-bold text-white">{{ $contact->initials }}</span>
                                                 </div>
                                 <!-- Source Indicators -->
-                                @if(count($contact->sources) > 1)
+                                @if(($contact->sources ?? []) && count($contact->sources ?? []) > 1)
                                     <div class="absolute -bottom-2 -right-2 flex space-x-1">
                                         @foreach(array_slice($contact->sourceObjects, 0, 3) as $index => $sourceObj)
                                             <div class="w-5 h-5 {{ $sourceObj->getCssClass() }} rounded-full flex items-center justify-center shadow-sm border border-white" 
@@ -341,14 +419,14 @@
                                                     </svg>
                                             </div>
                                         @endforeach
-                                        @if(count($contact->sources) > 3)
+                                        @if(count($contact->sources ?? []) > 3)
                                             <div class="w-5 h-5 bg-slate-600 text-white rounded-full flex items-center justify-center shadow-sm border border-white text-xs font-bold"
                                                  style="margin-left: -8px;">
-                                                +{{ count($contact->sources) - 3 }}
+                                                +{{ count($contact->sources ?? []) - 3 }}
                                             </div>
                                         @endif
                                     </div>
-                                @elseif(count($contact->sources) === 1)
+                                @elseif(count($contact->sources ?? []) === 1)
                                     <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm border-2 border-white">
                                         <div class="w-4 h-4 {{ $contact->primarySource->getCssClass() }} rounded-full flex items-center justify-center">
                                             <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
@@ -411,7 +489,7 @@
                                 </div>
                                 
                                 <!-- Tags -->
-                                @if($contact->tags && count($contact->tags) > 0)
+                                @if(($contact->tags ?? []) && count($contact->tags ?? []) > 0)
                                     <div class="flex flex-wrap gap-2 mt-3">
                                         @foreach(array_slice($contact->tags, 0, 4) as $tag)
                                             <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-sm">
@@ -421,9 +499,9 @@
                                                 {{ $tag }}
                                             </span>
                                         @endforeach
-                                        @if(count($contact->tags) > 4)
+                                        @if(count($contact->tags ?? []) > 4)
                                             <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-200 text-slate-600 border border-slate-300">
-                                                +{{ count($contact->tags) - 4 }} more
+                                                +{{ count($contact->tags ?? []) - 4 }} more
                                             </span>
                                         @endif
                                     </div>
@@ -433,6 +511,15 @@
                         
                         <!-- Actions -->
                         <div class="flex items-center space-x-3">
+                            <button wire:click="viewContact({{ $contact->id }})" 
+                                    class="group/btn inline-flex items-center px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all duration-200">
+                                <svg class="w-4 h-4 mr-2 group-hover/btn:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                View
+                            </button>
+                            
                             <button wire:click="editContact({{ $contact->id }})" 
                                     class="group/btn inline-flex items-center px-4 py-2 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 hover:border-indigo-300 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200">
                                 <svg class="w-4 h-4 mr-2 group-hover/btn:rotate-12 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -612,7 +699,7 @@ function connectTelegramDirectly() {
     
     // Start polling after connecting
     setTimeout(() => {
-        @this.call('startPolling');
+        window.Livewire.dispatch('start-polling');
     }, 2000);
 }
 
@@ -625,7 +712,7 @@ function startContactsPolling() {
     }
     
     pollingInterval = setInterval(() => {
-        @this.call('checkForNewContacts');
+        window.Livewire.dispatch('check-new-contacts');
     }, 3000); // Check every 3 seconds
     
     // Stop polling after 2 minutes to avoid infinite polling
@@ -639,7 +726,7 @@ function stopContactsPolling() {
         clearInterval(pollingInterval);
         pollingInterval = null;
     }
-    @this.call('stopPolling');
+    window.Livewire.dispatch('stop-polling');
 }
 
 // Start polling when page loads if user came from integration
@@ -720,6 +807,182 @@ document.addEventListener('click', function(event) {
             </div>
         @endif
     </div>
+
+    <!-- View Contact Modal -->
+    @if($viewingContact)
+        <div class="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <!-- Background overlay -->
+            <div class="flex items-center justify-center min-h-screen px-4 py-4 text-center sm:p-0">
+                <div class="fixed inset-0 transition-opacity bg-gradient-to-br from-slate-900/90 via-indigo-900/80 to-purple-900/90 backdrop-blur-md" 
+                     wire:click="closeViewModal"></div>
+
+                <!-- Modal panel -->
+                <div class="relative inline-block w-full max-w-2xl text-left align-middle transition-all transform bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-slate-200/60">
+                    
+                    <!-- Premium Header -->
+                    <div class="relative bg-gradient-to-r from-slate-600 via-slate-700 to-slate-600 px-6 py-4 rounded-t-2xl">
+                        <div class="absolute inset-0 bg-gradient-to-r from-slate-600/90 via-slate-700/90 to-slate-600/90 backdrop-blur-sm rounded-t-2xl"></div>
+                        <div class="relative flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div>
+                                    <h3 class="text-lg font-bold text-white tracking-tight" id="modal-title">
+                                        {{ $viewingContact->name }}
+                                    </h3>
+                                    <p class="text-slate-100 text-sm font-medium">
+                                        View contact information
+                                    </p>
+                                </div>
+                            </div>
+                            <button wire:click="closeViewModal" 
+                                    class="group rounded-xl bg-slate-700/90 hover:bg-slate-800/90 p-2 text-white focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all duration-200 backdrop-blur-sm border border-slate-600 hover:border-slate-500">
+                                <svg class="h-4 w-4 group-hover:rotate-90 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="px-6 py-4 bg-gradient-to-b from-slate-50/80 via-white to-slate-50/50 backdrop-blur-sm space-y-4">
+                        
+                        <!-- Contact Information -->
+                        <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                            <h4 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                                Contact Information
+                            </h4>
+                            <div class="space-y-4">
+                                <!-- Full Name -->
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm text-slate-600">Full Name</p>
+                                        <p class="font-semibold text-slate-900">{{ $viewingContact->name }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Phone -->
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm text-slate-600">Phone</p>
+                                        <p class="font-medium text-slate-900">
+                                            {{ $viewingContact->phone ?: '—' }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Email -->
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm text-slate-600">Email</p>
+                                        <p class="font-medium text-slate-900">
+                                            {{ $viewingContact->email ?: '—' }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sources -->
+                        <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                            <h4 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                </svg>
+                                Connected Platforms
+                            </h4>
+                            @if(($viewingContact->sources ?? []) && count($viewingContact->sources ?? []) > 0)
+                                <div class="flex flex-wrap gap-3">
+                                    @foreach($viewingContact->sourceObjects as $sourceObj)
+                                        <div class="inline-flex items-center px-4 py-2 rounded-lg {{ $sourceObj->getCssClass() }} shadow-sm">
+                                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="{{ $sourceObj->getIcon() }}"></path>
+                                            </svg>
+                                            <span class="font-medium">{{ $sourceObj->getLabel() }}</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="text-slate-500 italic">No connected platforms</p>
+                            @endif
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                            <h4 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                                </svg>
+                                Tags
+                            </h4>
+                            @if(($viewingContact->tags ?? []) && count($viewingContact->tags ?? []) > 0)
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach($viewingContact->tags as $tag)
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                            <svg class="w-3 h-3 mr-1 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                                            </svg>
+                                            {{ $tag }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="text-slate-500 italic">No tags assigned</p>
+                            @endif
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                            <h4 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Notes
+                            </h4>
+                            @if($viewingContact->notes)
+                                <div class="prose prose-sm max-w-none">
+                                    <p class="text-slate-700 whitespace-pre-wrap">{{ $viewingContact->notes }}</p>
+                                </div>
+                            @else
+                                <p class="text-slate-500 italic">No notes available</p>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="px-6 py-4 bg-gradient-to-r from-slate-50 via-white to-slate-50 border-t border-slate-200/60 rounded-b-2xl flex items-center justify-end space-x-3">
+                        <button wire:click="closeViewModal" 
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all duration-200 shadow-sm">
+                            Close
+                        </button>
+                        <button wire:click="editContact({{ $viewingContact->id }})" 
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 shadow-lg">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                            Edit Contact
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     </div>
 </div>

@@ -9,10 +9,13 @@ use App\Modules\Integration\Exceptions\UnipileApiException;
 use App\Modules\Integration\Services\UnipileService;
 use App\Shared\Enums\ContactSource;
 use Livewire\Component;
+use Illuminate\Support\Facades\Log;
 
 class ConnectAccount extends Component
 {
     public bool $showModal = false;
+
+    public string $selectedProvider = '';
 
     /** @var array<string, string> */
     protected $listeners = [
@@ -22,67 +25,39 @@ class ConnectAccount extends Component
 
     public function openModal(): void
     {
-        \Log::info('=== openModal called ===', [
-            'timestamp' => now()->toDateTimeString(),
-            'user_id' => auth()->id(),
-        ]);
         $this->showModal = true;
         $this->selectedProvider = '';
     }
 
     public function closeModal(): void
     {
-        \Log::info('=== closeModal called ===', [
-            'timestamp' => now()->toDateTimeString(),
-            'user_id' => auth()->id(),
-            'trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5),
-        ]);
         $this->showModal = false;
     }
 
 
-    public function connectTelegram(): void
+    public function connectTelegram()
     {
-        \Log::info('connectTelegram method started');
-
         try {
-            // Check if Unipile credentials are configured
             $dsn = config('services.unipile.dsn');
             $token = config('services.unipile.token');
 
-            \Log::info('Checking Unipile credentials', [
-                'dsn_set' => ! empty($dsn),
-                'token_set' => ! empty($token),
-            ]);
-
-            if (! $dsn || ! $token) {
-                \Log::warning('Unipile credentials not configured');
+            if (!$dsn || !$token) {
                 session()->flash('error', 'Unipile API credentials are not configured. Please contact administrator.');
                 $this->closeModal();
 
                 return;
             }
-
-            \Log::info('Unipile credentials are configured, proceeding...');
-
             $unipileService = app(UnipileService::class);
 
             $redirectUrl = route('integration.waiting');
             $userId = (string) auth()->id();
 
-            \Log::info('Creating Unipile Hosted Auth link', [
-                'user_id' => $userId,
-                'redirect_url' => $redirectUrl,
-            ]);
-
             $response = $unipileService->createHostedAuthLink(
                 ['TELEGRAM'],
                 $userId,
-                null, // No webhook notification needed
+                null,
                 $redirectUrl
             );
-
-            \Log::info('Unipile response', ['response' => $response]);
 
             if (isset($response['url'])) {
                 // Save pending integration in session
@@ -100,10 +75,9 @@ class ConnectAccount extends Component
 
                 \Log::info('Redirecting to Unipile URL', ['url' => $response['url']]);
 
-                // Use JavaScript redirect for better UX
-                $this->dispatch('redirect-external', url: $response['url']);
-
-                return;
+                // Direct redirect - simple and reliable
+                \Log::info('REDIRECTING NOW', ['url' => $response['url']]);
+                $this->redirect($response['url'], navigate: false);
             } else {
                 \Log::warning('No URL in Unipile response', ['response' => $response]);
                 session()->flash('error', 'Failed to create authentication link. Please try again.');
@@ -122,48 +96,48 @@ class ConnectAccount extends Component
         $this->closeModal();
     }
 
-    public function connectWhatsApp(): void
+    public function connectWhatsApp()
     {
         \Log::info('connectWhatsApp method started');
-        
+
         try {
             // Check if Unipile credentials are configured
             $dsn = config('services.unipile.dsn');
             $token = config('services.unipile.token');
-            
+
             \Log::info('Checking Unipile credentials for WhatsApp', [
                 'dsn_set' => !empty($dsn),
                 'token_set' => !empty($token)
             ]);
-            
+
             if (!$dsn || !$token) {
                 \Log::warning('Unipile credentials not configured for WhatsApp');
                 session()->flash('error', 'Unipile API credentials are not configured. Please contact administrator.');
                 $this->closeModal();
                 return;
             }
-            
+
             \Log::info('Unipile credentials are configured, proceeding with WhatsApp...');
 
             $unipileService = app(UnipileService::class);
-            
+
             $redirectUrl = route('integration.waiting');
             $userId = (string) auth()->id();
-            
+
             \Log::info('Creating Unipile Hosted Auth link for WhatsApp', [
                 'user_id' => $userId,
                 'redirect_url' => $redirectUrl
             ]);
-            
+
             $response = $unipileService->createHostedAuthLink(
-                ['WHATSAPP'], 
-                $userId, 
+                ['WHATSAPP'],
+                $userId,
                 null, // No webhook notification needed
                 $redirectUrl
             );
-            
+
             \Log::info('Unipile WhatsApp response', ['response' => $response]);
-            
+
             if (isset($response['url'])) {
                 // Save pending integration in session
                 session([
@@ -173,16 +147,16 @@ class ConnectAccount extends Component
                         'started_at' => now()->toDateTimeString()
                     ]
                 ]);
-                
+
                 // Show message and redirect immediately
                 session()->flash('info', 'Redirecting to WhatsApp authentication...');
                 $this->closeModal();
-                
+
                 \Log::info('Redirecting to Unipile WhatsApp URL', ['url' => $response['url']]);
-                
-                // Use JavaScript redirect for better UX
-                $this->dispatch('redirect-external', url: $response['url']);
-                return;
+
+                // Direct redirect - simple and reliable
+                \Log::info('REDIRECTING NOW', ['url' => $response['url']]);
+                $this->redirect($response['url'], navigate: false);
             } else {
                 \Log::warning('No URL in Unipile WhatsApp response', ['response' => $response]);
                 session()->flash('error', 'Failed to create WhatsApp authentication link. Please try again.');
@@ -197,71 +171,71 @@ class ConnectAccount extends Component
             ]);
             session()->flash('error', 'An unexpected error occurred while connecting WhatsApp. Please try again later or contact administrator.');
         }
-        
+
         $this->closeModal();
     }
 
-    public function connectGmail(): void
+    public function connectGmail()
     {
         \Log::info('connectGmail method started');
-        
+
         try {
             // Check if Unipile credentials are configured
             $dsn = config('services.unipile.dsn');
             $token = config('services.unipile.token');
-            
+
             \Log::info('Checking Unipile credentials for Gmail', [
                 'dsn_set' => !empty($dsn),
                 'token_set' => !empty($token)
             ]);
-            
+
             if (!$dsn || !$token) {
                 \Log::warning('Unipile credentials not configured for Gmail');
                 session()->flash('error', 'Unipile API credentials are not configured. Please contact administrator.');
                 $this->closeModal();
                 return;
             }
-            
+
             \Log::info('Unipile credentials are configured, proceeding with Gmail...');
 
             $unipileService = app(UnipileService::class);
-            
+
             $redirectUrl = route('integration.waiting');
             $userId = (string) auth()->id();
-            
+
             \Log::info('Creating Unipile Hosted Auth link for Gmail', [
                 'user_id' => $userId,
                 'redirect_url' => $redirectUrl
             ]);
-            
+
             $response = $unipileService->createHostedAuthLink(
-                ['GMAIL'], 
-                $userId, 
+                ['GOOGLE'],
+                $userId,
                 null, // No webhook notification needed
                 $redirectUrl
             );
-            
+
             \Log::info('Unipile Gmail response', ['response' => $response]);
-            
+
             if (isset($response['url'])) {
                 // Save pending integration in session
                 session([
                     'pending_integration' => [
                         'user_id' => auth()->id(),
-                        'provider' => 'gmail',
+                        'provider' => 'google_oauth',
                         'started_at' => now()->toDateTimeString()
                     ]
                 ]);
-                
+
                 // Show message and redirect immediately
                 session()->flash('info', 'Redirecting to Gmail authentication...');
                 $this->closeModal();
-                
+
                 \Log::info('Redirecting to Unipile Gmail URL', ['url' => $response['url']]);
-                
-                // Use JavaScript redirect for better UX
-                $this->dispatch('redirect-external', url: $response['url']);
-                return;
+
+                // Direct redirect - simple and reliable
+                \Log::info('REDIRECTING NOW', ['url' => $response['url']]);
+                $this->redirect($response['url'], navigate: false);
             } else {
                 \Log::warning('No URL in Unipile Gmail response', ['response' => $response]);
                 session()->flash('error', 'Failed to create Gmail authentication link. Please try again.');
@@ -276,11 +250,11 @@ class ConnectAccount extends Component
             ]);
             session()->flash('error', 'An unexpected error occurred while connecting Gmail. Please try again later or contact administrator.');
         }
-        
+
         $this->closeModal();
     }
 
-    public function connectTelegramDirect(): void
+    public function connectTelegramDirect()
     {
         \Log::info('connectTelegramDirect method called - bypassing modal');
 
@@ -312,7 +286,7 @@ class ConnectAccount extends Component
             'gmail' => [
                 'name' => 'Gmail',
                 'description' => 'Connect your Gmail account to sync email contacts',
-                'icon' => ContactSource::GMAIL->getIcon(),
+                'icon' => ContactSource::GOOGLE_OAUTH->getIcon(),
                 'color' => 'from-red-500 to-pink-600',
                 'available' => true, // Hosted Auth Wizard implemented
             ],
@@ -354,15 +328,10 @@ class ConnectAccount extends Component
         $providers = $this->getAvailableProvidersProperty();
         $connectedAccounts = $this->getConnectedAccountsProperty();
 
-        \Log::info('ConnectAccount render', [
-            'showModal' => $this->showModal,
-            'providers' => array_keys($providers),
-            'connectedAccounts' => $connectedAccounts,
-        ]);
-
         return view('integration::connect-account', [
             'providers' => $providers,
             'connectedAccounts' => $connectedAccounts,
         ]);
     }
+
 }

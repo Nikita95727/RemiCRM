@@ -255,7 +255,7 @@ class LivewireComponentsTest extends TestCase
             'email' => 'john@example.com',
             'phone' => '+1234567890',
             'tags' => ['crypto', 'business'],
-            'sources' => ['telegram', 'gmail'],
+            'sources' => ['telegram', 'google_oauth'],
         ]);
 
         Livewire::test(ContactsList::class)
@@ -265,7 +265,7 @@ class LivewireComponentsTest extends TestCase
             ->assertSee('crypto')
             ->assertSee('business')
             ->assertSee('telegram')
-            ->assertSee('gmail');
+            ->assertSee('google_oauth');
     }
 
     /** @test */

@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Integration\Jobs;
 
+use App\Models\ImportStatus;
+use App\Modules\Contact\Contracts\ContactRepositoryInterface;
 use App\Modules\Contact\DTOs\CreateContactDTO;
 use App\Modules\Contact\Models\Contact;
-use App\Modules\Integration\Exceptions\ContactSyncException;
-use App\Modules\Integration\Exceptions\UnipileApiException;
 use App\Modules\Integration\Models\IntegratedAccount;
 use App\Modules\Integration\Services\UnipileService;
 use App\Modules\Integration\Transformers\ContactTransformerFactory;
+use App\Modules\Integration\Jobs\BatchAutoTagContacts;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,11 +24,14 @@ class SyncContactsFromAccount implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $timeout = 600; // 10 minutes
+    public int $tries = 3;
+
     public function __construct(
         private IntegratedAccount $account
     ) {}
 
-    public function handle(UnipileService $unipileService): void
+    public function handle(UnipileService $unipileService, ContactRepositoryInterface $contactRepository): void
     {
         try {
             if (! $this->account->isActive()) {
@@ -35,158 +39,268 @@ class SyncContactsFromAccount implements ShouldQueue
                 return;
             }
 
-            Log::info('✨ FIXED TRANSFORMER LOGIC STARTING', [
+            Log::info('🚀 OPTIMIZED STREAMING SYNC - Memory-safe processing', [
                 'account_id' => $this->account->id,
                 'provider' => $this->account->provider,
                 'job_class' => self::class,
             ]);
 
-            // Get raw data from Unipile API
-            $rawData = $this->fetchRawDataFromProvider($unipileService);
+            // Start import tracking
+            ImportStatus::startImport($this->account->user_id, $this->account->provider->value);
 
-            // Transform using provider-specific transformer
-            $transformerFactory = new ContactTransformerFactory();
-            $transformer = $transformerFactory->create($this->account->provider->value);
-            
-            Log::info('Using transformer for provider', [
-                'provider' => $this->account->provider,
-                'transformer_class' => get_class($transformer),
-            ]);
-
-            $contactDTOs = $transformer->transform($rawData, $this->account->user_id);
-
-            // Save contacts to database
-            $savedContacts = $this->saveContacts($contactDTOs);
+            // Use streaming approach to avoid memory issues
+            $this->processContactsInBatches($unipileService, $contactRepository);
 
             $this->account->update(['last_sync_at' => now()]);
 
-            Log::info('🎉 FIXED TRANSFORMER - Provider-specific contact sync completed', [
+            // Mark import as completed and start tagging
+            ImportStatus::completeImport($this->account->user_id, $this->account->provider->value);
+            
+            // Start batch tagging immediately after sync completion
+            BatchAutoTagContacts::dispatch($this->account);
+
+            Log::info('🎉 OPTIMIZED SYNC - Streaming contact sync completed', [
                 'account_id' => $this->account->id,
                 'provider' => $this->account->provider,
-                'contacts_transformed' => count($contactDTOs),
-                'contacts_saved' => count($savedContacts),
+                'batch_tagging_scheduled' => true,
             ]);
 
-        } catch (UnipileApiException $e) {
-            Log::error('Unipile API error during contact sync', array_merge(
-                $e->getLogContext(),
-                [
-                    'account_id' => $this->account->id,
-                    'provider' => $this->account->provider->value,
-                ]
-            ));
-
-            $this->account->update([
-                'status' => 'error',
-                'error_message' => $e->getUserMessage(),
-                'last_error_at' => now(),
-            ]);
-
-            throw $e;
-        } catch (ContactSyncException $e) {
-            Log::error('Contact sync error', array_merge(
-                $e->getLogContext(),
-                [
-                    'account_id' => $this->account->id,
-                    'provider' => $this->account->provider->value,
-                ]
-            ));
-
-            $this->account->update([
-                'status' => 'error',
-                'error_message' => $e->getUserMessage(),
-                'last_error_at' => now(),
-            ]);
-
-            throw $e;
         } catch (\Exception $e) {
-            Log::error('Unexpected error during contact sync', [
+            // Mark import as failed
+            ImportStatus::failImport($this->account->user_id, $this->account->provider->value, $e->getMessage());
+            
+            Log::error('OPTIMIZED SYNC - Contact sync error: '.$e->getMessage(), [
                 'account_id' => $this->account->id,
-                'provider' => $this->account->provider->value,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'provider' => $this->account->provider,
+                'exception' => $e,
             ]);
 
-            $this->account->update([
-                'status' => 'error',
-                'error_message' => 'An unexpected error occurred during contact synchronization.',
-                'last_error_at' => now(),
-            ]);
-
-            throw new ContactSyncException(
-                'Unexpected error during contact sync: ' . $e->getMessage(),
-                'unexpected_error',
-                ['account_id' => $this->account->id],
-                'An unexpected error occurred during contact synchronization.',
-                $e
-            );
+            $this->account->update(['status' => 'error']);
+            throw $e;
         }
     }
 
     /**
-     * @return array<string, mixed>
+     * Process contacts in batches using streaming approach to avoid memory issues
      */
-    private function fetchRawDataFromProvider(UnipileService $unipileService): array
+    private function processContactsInBatches(UnipileService $unipileService, ContactRepositoryInterface $contactRepository): void
     {
-        return match ($this->account->provider->value) {
-            'telegram', 'whatsapp' => $unipileService->listAllChats($this->account->unipile_account_id),
-            'gmail' => $unipileService->listEmails($this->account->unipile_account_id),
-            default => [],
+        $transformerFactory = new ContactTransformerFactory();
+        $transformer = $transformerFactory->create($this->account->provider->value);
+        
+        $totalProcessed = 0;
+        $totalSaved = 0;
+        $batchSize = 25; // Smaller batches for memory efficiency
+        
+        // Define callback for processing each batch
+        $processBatch = function (array $items, int $page, ?string $cursor) use ($transformer, &$totalProcessed, &$totalSaved, $batchSize, $contactRepository): bool {
+            try {
+                // Transform batch to contact DTOs
+                $rawData = ['items' => $items];
+                $contactDTOs = $transformer->transform($rawData, $this->account->user_id);
+                
+                // Save contacts to database
+                $savedContacts = $this->saveContacts($contactDTOs, $contactRepository);
+                
+                $totalProcessed += count($items);
+                $totalSaved += count($savedContacts);
+
+                // Update import progress
+                ImportStatus::updateProgress(
+                    $this->account->user_id, 
+                    $this->account->provider->value, 
+                    $totalSaved,
+                    "Imported {$totalSaved} contacts..."
+                );
+
+                Log::info("Batch {$page} completed", [
+                    'processed' => count($items),
+                    'transformed' => count($contactDTOs),
+                    'saved' => count($savedContacts),
+                    'total_processed' => $totalProcessed,
+                    'total_saved' => $totalSaved,
+                ]);
+
+                // Force garbage collection after each batch
+                gc_collect_cycles();
+                
+                return true; // Continue processing
+
+            } catch (\Exception $e) {
+                Log::error("Batch {$page} failed", [
+                    'error' => $e->getMessage(),
+                    'items_count' => count($items),
+                ]);
+                
+                return true; // Continue with next batch even if this one fails
+            }
         };
+
+        // Stream data based on provider type using manual pagination
+        $result = $this->streamDataManually($unipileService, $processBatch, $batchSize);
+
+        Log::info('Streaming sync completed', [
+            'provider' => $this->account->provider->value,
+            'pages_processed' => $result['pages_processed'],
+            'api_total_items' => $result['total_items'],
+            'contacts_processed' => $totalProcessed,
+            'contacts_saved' => $totalSaved,
+            'errors' => count($result['errors']),
+            'completed' => $result['completed'],
+        ]);
+
+        if (!empty($result['errors'])) {
+            Log::warning('Some batches had errors during sync', [
+                'errors' => $result['errors'],
+            ]);
+        }
     }
+
 
     /**
      * @param  CreateContactDTO[]  $contactDTOs
      * @return Contact[]
      */
-    private function saveContacts(array $contactDTOs): array
+    private function saveContacts(array $contactDTOs, ContactRepositoryInterface $contactRepository): array
     {
         $savedContacts = [];
-        foreach ($contactDTOs as $contactDto) {
-            try {
-                // Check if a contact with the same provider_id already exists for this user
-                $existingContact = Contact::where('user_id', $contactDto->userId)
-                    ->whereJsonContains('sources', $this->account->provider)
-                    ->whereHas('integrations', function ($query) use ($contactDto) {
-                        $query->where('integrated_account_id', $this->account->id)
-                            ->where('external_id', $contactDto->providerId);
-                    })
-                    ->first();
+        $user = $this->account->user;
 
-                if ($existingContact) {
-                    Log::debug('Contact already exists, skipping creation', [
-                        'contact_id' => $existingContact->id,
-                        'name' => $existingContact->name,
-                        'provider_id' => $contactDto->providerId,
-                    ]);
-                    $savedContacts[] = $existingContact;
-                    continue;
+        foreach ($contactDTOs as $contactDTO) {
+            try {
+                // Check if contact already exists using repository
+                $existingContact = null;
+
+                // First, try to find by provider_id (most accurate for external contacts)
+                if ($contactDTO->providerId) {
+                    $existingContact = $contactRepository->findByProviderId($user, $contactDTO->providerId);
                 }
 
-                $contact = Contact::create($contactDto->toArray());
+                // If not found, try email/phone
+                if (!$existingContact && ($contactDTO->email || $contactDTO->phone)) {
+                    $existingContact = $contactRepository->findByEmailOrPhone(
+                        $user,
+                        $contactDTO->email,
+                        $contactDTO->phone
+                    );
+                }
 
-                $contact->integrations()->attach($this->account->id, [
-                    'external_id' => $contactDto->providerId,
-                    'last_synced_at' => now(),
+                // Last fallback: name search (only if no provider_id, email, or phone)
+                if (!$existingContact && !$contactDTO->providerId && !$contactDTO->email && !$contactDTO->phone) {
+                    $existingContact = $contactRepository->findByName($user, $contactDTO->name);
+                }
+
+                if ($existingContact) {
+                    // Update existing contact with new sources
+                    $existingSources = $existingContact->sources ?? [];
+                    $newSources = array_unique(array_merge($existingSources, $contactDTO->sources));
+                    
+                    $contactRepository->update($existingContact, [
+                        'sources' => $newSources,
+                        'notes' => $contactDTO->notes ?: $existingContact->notes,
+                    ]);
+
+                    $savedContacts[] = $existingContact;
+                } else {
+                    // Create new contact using repository
+                    $contact = $contactRepository->create($contactDTO->toArray());
+                    $savedContacts[] = $contact;
+                }
+
+                // Create integration record with chat_id for message fetching
+                $contact = $savedContacts[array_key_last($savedContacts)];
+                
+                Log::debug('Creating integration', [
+                    'contact_name' => $contact->name,
+                    'chatId' => $contactDTO->chatId,
+                    'providerId' => $contactDTO->providerId,
+                    'final_external_id' => $contactDTO->chatId ?? $contactDTO->providerId ?? 'unknown',
+                ]);
+                
+                $contact->integrations()->create([
+                    'integrated_account_id' => $this->account->id,
+                    'external_id' => $contactDTO->chatId ?? $contactDTO->providerId ?? 'unknown',
                 ]);
 
-                $savedContacts[] = $contact;
-
-                Log::info('Contact created successfully', [
-                    'contact_id' => $contact->id,
-                    'name' => $contact->name,
-                    'provider' => $this->account->provider,
-                    'provider_id' => $contactDto->providerId,
-                    'phone' => $contact->phone,
-                ]);
             } catch (\Exception $e) {
-                Log::error('Failed to save contact from DTO', [
-                    'dto' => $contactDto->toArray(),
+                Log::error('Failed to save contact', [
+                    'contact_data' => $contactDTO->toArray(),
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
         return $savedContacts;
+    }
+
+    /**
+     * Manual streaming implementation using existing methods
+     */
+    private function streamDataManually(UnipileService $unipileService, callable $processBatch, int $batchSize): array
+    {
+        $cursor = null;
+        $currentPage = 0;
+        $totalProcessed = 0;
+        $errors = [];
+        $maxPages = 20;
+
+        do {
+            $currentPage++;
+            
+            try {
+                // Use existing methods based on provider
+                $response = match ($this->account->provider->value) {
+                    'telegram', 'whatsapp' => $unipileService->listChats($this->account->unipile_account_id, $batchSize, $cursor),
+                    'google_oauth' => $unipileService->listEmails($this->account->unipile_account_id, $batchSize, $cursor),
+                    default => ['items' => []],
+                };
+
+                if (empty($response['items'])) {
+                    break;
+                }
+
+                // Process batch with callback
+                $shouldContinue = $processBatch($response['items'], $currentPage, $cursor);
+                
+                $totalProcessed += count($response['items']);
+                $cursor = $response['cursor'] ?? null;
+
+                // Allow callback to stop processing
+                if ($shouldContinue === false) {
+                    break;
+                }
+
+                // Memory cleanup
+                unset($response);
+                
+                // Small delay to prevent API rate limiting
+                if ($currentPage % 5 === 0) {
+                    usleep(100000); // 100ms pause every 5 pages
+                }
+
+            } catch (\Exception $e) {
+                $errors[] = [
+                    'page' => $currentPage,
+                    'error' => $e->getMessage(),
+                    'cursor' => $cursor
+                ];
+                
+                Log::error("Manual streaming page {$currentPage} failed", [
+                    'error' => $e->getMessage(),
+                    'provider' => $this->account->provider->value,
+                ]);
+                
+                // Continue with next page on error
+                $cursor = null;
+            }
+
+        } while ($cursor && $currentPage < $maxPages);
+
+        return [
+            'pages_processed' => $currentPage,
+            'total_items' => $totalProcessed,
+            'errors' => $errors,
+            'completed' => empty($cursor) || $currentPage >= $maxPages
+        ];
     }
 }

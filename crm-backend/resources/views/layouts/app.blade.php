@@ -104,14 +104,16 @@
             </nav>
         @endauth
 
+        <!-- Global Search Component -->
+        @auth
+            @livewire('contact.global-search')
+        @endauth
+
         <!-- Page Content -->
         <main>
             @yield('content')
             {{ $slot ?? '' }}
         </main>
-
-        <!-- Global Search Component -->
-        @livewire('contact.global-search')
 
         @livewireScripts
         

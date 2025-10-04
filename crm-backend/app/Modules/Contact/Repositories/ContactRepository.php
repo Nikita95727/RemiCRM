@@ -115,11 +115,7 @@ class ContactRepository implements ContactRepositoryInterface
     public function search(User $user, string $query): Collection
     {
         return Contact::where('user_id', $user->id)
-            ->where(function ($q) use ($query) {
-                $q->where('name', 'like', "%{$query}%")
-                    ->orWhere('email', 'like', "%{$query}%")
-                    ->orWhere('notes', 'like', "%{$query}%");
-            })
+            ->search($query)
             ->get();
     }
 
@@ -136,5 +132,123 @@ class ContactRepository implements ContactRepositoryInterface
         }
 
         return $query->get();
+    }
+
+    /**
+     * Find contact by ID for a specific user
+     */
+    public function findByUserAndId(User $user, int $contactId): ?Contact
+    {
+        return Contact::where('user_id', $user->id)
+            ->where('id', $contactId)
+            ->first();
+    }
+
+    /**
+     * Get paginated contacts with search and filters - OPTIMIZED
+     * @param array<string> $sourceFilters
+     * @return LengthAwarePaginator<int, Contact>
+     */
+    public function paginateWithFilters(User $user, ?string $search = null, array $sourceFilters = [], string $sortBy = 'created_at', string $sortDirection = 'desc', int $perPage = 15): LengthAwarePaginator
+    {
+        $query = Contact::select(['id', 'name', 'email', 'phone', 'sources', 'tags', 'notes', 'created_at', 'updated_at'])
+            ->where('user_id', $user->id)
+            ->when($search, fn ($q) => $q->search($search))
+            ->when(!empty($sourceFilters), function ($q) use ($sourceFilters) {
+                $q->where(function ($subQuery) use ($sourceFilters) {
+                    foreach ($sourceFilters as $source) {
+                        $subQuery->orWhereJsonContains('sources', $source);
+                    }
+                });
+            })
+            ->orderBy($sortBy, $sortDirection);
+
+        return $query->paginate($perPage);
+    }
+
+    /**
+     * Get contact statistics by source - OPTIMIZED
+     * @return array<string, int>
+     */
+    public function getContactStatsByUser(User $user): array
+    {
+        // Single query with JSON extraction for better performance
+        $stats = Contact::selectRaw('
+            COUNT(*) as total,
+            SUM(JSON_CONTAINS(sources, \'["crm"]\')) as crm,
+            SUM(JSON_CONTAINS(sources, \'["telegram"]\')) as telegram,
+            SUM(JSON_CONTAINS(sources, \'["whatsapp"]\')) as whatsapp,
+            SUM(JSON_CONTAINS(sources, \'["google_oauth"]\')) as gmail
+        ')
+        ->where('user_id', $user->id)
+        ->first();
+
+        return [
+            'crm' => (int) ($stats->crm ?? 0),
+            'telegram' => (int) ($stats->telegram ?? 0),
+            'whatsapp' => (int) ($stats->whatsapp ?? 0),
+            'gmail' => (int) ($stats->gmail ?? 0),
+            'total' => (int) ($stats->total ?? 0),
+        ];
+    }
+
+    /**
+     * Find contacts without tags for a specific account - OPTIMIZED
+     * @return Collection<int, Contact>
+     */
+    public function findUntaggedByAccount(int $accountId, int $userId): Collection
+    {
+        return Contact::select(['id', 'name', 'email', 'phone', 'tags'])
+            ->where('user_id', $userId)
+            ->where(function ($query) {
+                $query->whereNull('tags')
+                    ->orWhere('tags', '[]')
+                    ->orWhereJsonLength('tags', 0);
+            })
+            ->whereHas('integrations', function ($query) use ($accountId) {
+                $query->where('integrated_account_id', $accountId);
+            })
+            ->with(['integrations' => function ($query) use ($accountId) {
+                $query->where('integrated_account_id', $accountId)
+                    ->select(['id', 'contact_id', 'integrated_account_id', 'external_id']);
+            }])
+            ->get();
+    }
+
+    /**
+     * Find contact by email or phone for user - OPTIMIZED
+     */
+    public function findByEmailOrPhone(User $user, ?string $email, ?string $phone): ?Contact
+    {
+        return Contact::where('user_id', $user->id)
+            ->where(function ($query) use ($email, $phone) {
+                if ($email) {
+                    $query->where('email', $email);
+                }
+                if ($phone) {
+                    $query->orWhere('phone', $phone);
+                }
+            })
+            ->first();
+    }
+
+    /**
+     * Find contact by name for user (fallback) - OPTIMIZED
+     */
+    public function findByName(User $user, string $name): ?Contact
+    {
+        return Contact::where('user_id', $user->id)
+            ->where('name', $name)
+            ->first();
+    }
+
+    /**
+     * Find contact by provider_id for user - OPTIMIZED
+     */
+    public function findByProviderId(User $user, string $providerId): ?Contact
+    {
+        return Contact::where('user_id', $user->id)
+            ->where('provider_id', $providerId)
+            ->first();
     }
 }

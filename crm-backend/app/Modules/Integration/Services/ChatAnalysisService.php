@@ -234,12 +234,36 @@ class ChatAnalysisService
         $tempFile = tempnam(sys_get_temp_dir(), 'chat_messages_');
         file_put_contents($tempFile, json_encode($messages, JSON_UNESCAPED_UNICODE));
 
-        $command = sprintf(
-            'cd %s && python3 %s --file %s 2>&1',
-            escapeshellarg($crmBackendRoot),
-            escapeshellarg($pythonScript),
-            escapeshellarg($tempFile)
-        );
+        // Use virtual environment for production, direct python3 for other environments
+        if (app()->environment('production')) {
+            // Use direct path to venv python (more reliable than activating venv)
+            $venvPython = $crmBackendRoot . '/venv/bin/python';
+            if (file_exists($venvPython)) {
+                $command = sprintf(
+                    '%s %s --file %s 2>&1',
+                    escapeshellarg($venvPython),
+                    escapeshellarg($pythonScript),
+                    escapeshellarg($tempFile)
+                );
+            } else {
+                // Fallback to python3 if venv not found
+                Log::warning('ChatAnalysisService: venv not found, falling back to python3', [
+                    'expected_venv_path' => $venvPython
+                ]);
+                $command = sprintf(
+                    'python3 %s --file %s 2>&1',
+                    escapeshellarg($pythonScript),
+                    escapeshellarg($tempFile)
+                );
+            }
+        } else {
+            $command = sprintf(
+                'cd %s && python3 %s --file %s 2>&1',
+                escapeshellarg($crmBackendRoot),
+                escapeshellarg($pythonScript),
+                escapeshellarg($tempFile)
+            );
+        }
 
         $output = shell_exec($command);
 

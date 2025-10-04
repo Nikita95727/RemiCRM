@@ -1,5 +1,5 @@
 <div>
-    @if(count($errorAccounts) > 0)
+    @if(($errorAccounts ?? []) && count($errorAccounts ?? []) > 0)
         <div class="mb-6 space-y-4">
             @foreach($errorAccounts as $account)
                 <div class="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">

@@ -157,8 +157,27 @@
                                     <input wire:model="phone" 
                                            type="tel" 
                                            id="phone"
+                                           x-data="{ 
+                                               formatPhone(event) {
+                                                   let value = event.target.value;
+                                                   // Remove all non-digit characters except + - ( ) and spaces
+                                                   value = value.replace(/[^0-9+\-\(\)\s]/g, '');
+                                                   event.target.value = value;
+                                                   // Update Livewire model
+                                                   this.$wire.set('phone', value);
+                                               }
+                                           }"
+                                           @input="formatPhone($event)"
+                                           @keypress="
+                                               // Allow only numbers, +, -, (, ), and space
+                                               const char = String.fromCharCode($event.which);
+                                               if (!/[0-9+\-\(\)\s]/.test(char)) {
+                                                   $event.preventDefault();
+                                               }
+                                           "
                                            class="w-full px-4 py-3 text-slate-900 bg-white/80 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-base font-medium shadow-lg hover:shadow-xl focus:shadow-2xl backdrop-blur-sm transition-all duration-300 placeholder:text-slate-400 @error('phone') border-red-300 focus:border-red-500 focus:ring-red-500/20 @enderror"
-                                           placeholder="+1 (555) 123-4567">
+                                           placeholder="+1 (555) 123-4567"
+                                           title="Only numbers, +, -, (, ), and spaces are allowed">
                                     <div class="absolute inset-y-0 right-0 flex items-center pr-6">
                                         <div class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-100 rounded-xl flex items-center justify-center transition-colors duration-200">
                                             <svg class="w-4 h-4 text-slate-500 group-hover:text-indigo-600 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">

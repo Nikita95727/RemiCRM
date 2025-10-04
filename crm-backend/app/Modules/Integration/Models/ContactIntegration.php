@@ -17,6 +17,7 @@ class ContactIntegration extends Model
     protected $fillable = [
         'contact_id',
         'integrated_account_id',
+        'external_id',
         'provider_contact_id',
         'last_synced_at',
         'sync_status',

@@ -107,7 +107,7 @@ class AccountsManager extends Component
         return [
             ContactSource::TELEGRAM->value => ContactSource::TELEGRAM->getLabel(),
             ContactSource::WHATSAPP->value => ContactSource::WHATSAPP->getLabel(),
-            ContactSource::GMAIL->value => ContactSource::GMAIL->getLabel(),
+            ContactSource::GOOGLE_OAUTH->value => ContactSource::GOOGLE_OAUTH->getLabel(),
         ];
     }
 

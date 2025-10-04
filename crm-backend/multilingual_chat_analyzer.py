@@ -305,6 +305,21 @@ class MultilingualChatAnalyzer:
                     'сябар', 'сяброўка', 'сям\'я', 'брат', 'сястра', 'мама', 'тата', 'маці',
                     'бацька', 'дзядзька', 'цётка', 'двюродны', 'жонка', 'муж'
                 ]
+            },
+            
+            'personal': {
+                'en': [
+                    'chat', 'talk', 'message', 'conversation', 'discuss', 'tell', 'said', 'think',
+                    'feel', 'want', 'need', 'like', 'love', 'hate', 'good', 'bad', 'happy', 'sad'
+                ],
+                'ru': [
+                    'чат', 'говорить', 'сообщение', 'разговор', 'обсуждать', 'сказать', 'думать',
+                    'чувствовать', 'хотеть', 'нужно', 'нравится', 'любить', 'ненавидеть', 'хорошо', 'плохо'
+                ],
+                'uk': [
+                    'чат', 'говорити', 'повідомлення', 'розмова', 'обговорювати', 'сказати', 'думати',
+                    'відчувати', 'хотіти', 'потрібно', 'подобається', 'любити'
+                ]
             }
         }
         
@@ -457,7 +472,13 @@ class MultilingualChatAnalyzer:
                     return category
             
             # Method 2: Fallback to TF-IDF analysis
-            return self._analyze_with_tfidf(text, detected_lang)
+            category = self._analyze_with_tfidf(text, detected_lang)
+            
+            # If no category found and we have enough messages, assign "personal"
+            if not category and len(messages) >= 3:
+                return "personal"
+            
+            return category
             
         except Exception as e:
             return None
@@ -569,7 +590,16 @@ class MultilingualChatAnalyzer:
             results["ranked_categories"] = sorted_scores
             
             threshold = 0.15 if results["analysis_method"] == "sentence_transformer" else 0.05
-            best_category = sorted_scores[0][0] if sorted_scores and sorted_scores[0][1] >= threshold else None
+            
+            # If no category meets threshold and we have enough messages, assign "personal" as fallback
+            if sorted_scores and sorted_scores[0][1] >= threshold:
+                best_category = sorted_scores[0][0]
+            elif results["message_count"] >= 3:
+                # Fallback to "personal" for personal chats without clear business keywords
+                best_category = "personal"
+            else:
+                best_category = None
+            
             results["best_category"] = best_category
             results["confidence"] = float(sorted_scores[0][1]) if sorted_scores else 0.0
             

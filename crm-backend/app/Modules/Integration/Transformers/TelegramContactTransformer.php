@@ -27,7 +27,7 @@ class TelegramContactTransformer implements ContactTransformerInterface
         ]);
 
         foreach ($rawData['items'] ?? [] as $chat) {
-            // Filter only private chats (type = 0)
+            // Filter only private chats (type = 0) - only they have accessible messages for analysis
             $chatType = $chat['type'] ?? null;
             if ($chatType !== 0) {
                 $skippedGroups++;
@@ -69,6 +69,7 @@ class TelegramContactTransformer implements ContactTransformerInterface
     private function transformSingleChat(array $chat, int $userId): ?CreateContactDTO
     {
         $providerId = $chat['attendee_provider_id'] ?? null;
+        $chatId = $chat['id'] ?? null;  // THIS is the ID needed for fetching messages!
         $name = $chat['name'] ?? null;
 
         if (!$providerId) {
@@ -102,7 +103,8 @@ class TelegramContactTransformer implements ContactTransformerInterface
             name: $name,
             provider: 'telegram',
             notes: $notes,
-            providerId: $providerId
+            providerId: $providerId,
+            chatId: $chatId  // Pass the actual chat ID for message fetching
         );
     }
 

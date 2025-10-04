@@ -97,8 +97,17 @@ class ForceTagging extends Command
         $chatId = $contactIntegration->external_id;
         $accountId = $contactIntegration->integratedAccount->unipile_account_id;
 
+        // Skip contacts without external_id (old data or invalid records)
+        if (!$chatId) {
+            Log::warning('ForceTagging: Contact has no external_id', [
+                'contact_id' => $contact->id,
+                'contact_name' => $contact->name,
+            ]);
+            return 'no_messages';
+        }
+
         try {
-            $messages = $unipileService->listChatMessages($accountId, $chatId, 1000);
+            $messages = $unipileService->getAllChatMessages($accountId, $chatId, 2000, 250);
 
             if (empty($messages['messages'])) {
                 return 'no_messages';

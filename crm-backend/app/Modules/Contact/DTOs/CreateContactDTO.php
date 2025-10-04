@@ -16,7 +16,8 @@ class CreateContactDTO
         public readonly ?string $email = null,
         public readonly ?string $phone = null,
         public readonly ?string $notes = null,
-        public readonly ?string $providerId = null
+        public readonly ?string $providerId = null,
+        public readonly ?string $chatId = null  // Unipile chat ID for fetching messages
     ) {}
 
     /**
@@ -42,7 +43,8 @@ class CreateContactDTO
         ?string $notes = null,
         ?string $email = null,
         ?string $phone = null,
-        ?string $providerId = null
+        ?string $providerId = null,
+        ?string $chatId = null
     ): self {
         return new self(
             userId: $userId,
@@ -51,7 +53,8 @@ class CreateContactDTO
             email: $email,
             phone: $phone,
             notes: $notes ?? 'Imported from '.ucfirst($provider),
-            providerId: $providerId
+            providerId: $providerId,
+            chatId: $chatId
         );
     }
 
