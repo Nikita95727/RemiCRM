@@ -114,7 +114,7 @@
                                x-model="searchTerm"
                                @input.debounce.300ms="performSearch()"
                                class="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-lg font-medium shadow-sm transition-all duration-300" 
-                               placeholder="Search contacts by name, email, phone..." 
+                               placeholder="Search contacts by name, email, phone, tags..." 
                                x-ref="searchInput">
                     </div>
                 </div>
@@ -129,7 +129,7 @@
                             </svg>
                         </div>
                         <h4 class="text-lg font-bold text-slate-900 mb-2">Start searching</h4>
-                        <p class="text-slate-600">Type to find contacts by name, email, or phone</p>
+                        <p class="text-slate-600">Type to find contacts by name, email, phone, or tags</p>
                     </div>
                     
                     <!-- No Results -->
