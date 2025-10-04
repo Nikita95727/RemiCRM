@@ -16,10 +16,12 @@ Route::middleware('guest')->group(function () {
 
     Volt::route('reset-password/{token}', 'pages.auth.reset-password')
         ->name('password.reset');
-
-    Volt::route('two-factor/login', 'pages.auth.two-factor-challenge')
-        ->name('two-factor.login');
 });
+
+// 2FA challenge route - accessible to authenticated users but without 2FA middleware
+Volt::route('two-factor/login', 'pages.auth.two-factor-challenge')
+    ->middleware('auth')
+    ->name('two-factor.login');
 
 Route::middleware('auth')->group(function () {
     Volt::route('verify-email', 'pages.auth.verify-email')

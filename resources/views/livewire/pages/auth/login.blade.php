@@ -22,12 +22,21 @@ new #[Layout('layouts.guest')] class extends Component
 
         $user = auth()->user();
         
+        // Debug: Log the 2FA status
+        \Log::info('Login attempt', [
+            'user_id' => $user->id,
+            'has_2fa' => $user->hasEnabledTwoFactorAuthentication(),
+            'two_factor_secret' => $user->two_factor_secret ? 'SET' : 'NULL'
+        ]);
+        
         // Check if user has 2FA enabled
         if ($user && $user->hasEnabledTwoFactorAuthentication()) {
             // Redirect to 2FA challenge page
+            \Log::info('Redirecting to 2FA challenge');
             $this->redirect(route('two-factor.login'), navigate: false);
         } else {
             // Normal redirect to contacts
+            \Log::info('Redirecting to contacts (no 2FA)');
             $this->redirect(route('contacts'), navigate: false);
         }
     }

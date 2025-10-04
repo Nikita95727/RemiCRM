@@ -23,6 +23,11 @@ class EnsureTwoFactorIsConfirmed
             return $next($request);
         }
 
+        // If user is already on the 2FA challenge page, don't redirect
+        if ($request->routeIs('two-factor.login')) {
+            return $next($request);
+        }
+
         // If user has 2FA enabled but not confirmed in this session
         if ($user->hasEnabledTwoFactorAuthentication() && !$request->session()->has('two_factor_confirmed')) {
             return redirect()->route('two-factor.login');
