@@ -30,7 +30,7 @@ new #[Layout('layouts.guest')] class extends Component
         // Mark 2FA as verified for this session
         session()->put('two_factor_verified', true);
 
-        $this->redirect(route('dashboard'), navigate: true);
+        return redirect()->intended(route('dashboard'));
     }
 
     public function verifyRecoveryCode()
@@ -53,7 +53,7 @@ new #[Layout('layouts.guest')] class extends Component
         // Mark 2FA as verified for this session
         session()->put('two_factor_verified', true);
 
-        $this->redirect(route('dashboard'), navigate: true);
+        return redirect()->intended(route('dashboard'));
     }
 
     public function toggleRecoveryMode()
