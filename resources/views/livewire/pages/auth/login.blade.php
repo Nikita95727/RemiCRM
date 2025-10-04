@@ -26,17 +26,18 @@ new #[Layout('layouts.guest')] class extends Component
         \Log::info('Login attempt', [
             'user_id' => $user->id,
             'has_2fa' => $user->hasEnabledTwoFactorAuthentication(),
+            'two_factor_confirmed' => $user->hasConfirmedTwoFactorAuthentication(),
             'two_factor_secret' => $user->two_factor_secret ? 'SET' : 'NULL'
         ]);
         
-        // Check if user has 2FA enabled
-        if ($user && $user->hasEnabledTwoFactorAuthentication()) {
+        // Check if user has 2FA enabled AND confirmed (not just enabled)
+        if ($user && $user->hasEnabledTwoFactorAuthentication() && $user->hasConfirmedTwoFactorAuthentication()) {
             // Redirect to 2FA challenge page
             \Log::info('Redirecting to 2FA challenge');
             $this->redirect(route('two-factor.login'), navigate: false);
         } else {
             // Normal redirect to contacts
-            \Log::info('Redirecting to contacts (no 2FA)');
+            \Log::info('Redirecting to contacts (no 2FA or not confirmed)');
             $this->redirect(route('contacts'), navigate: false);
         }
     }

@@ -28,8 +28,8 @@ class EnsureTwoFactorIsConfirmed
             return $next($request);
         }
 
-        // If user has 2FA enabled but not confirmed in this session
-        if ($user->hasEnabledTwoFactorAuthentication() && !$request->session()->has('two_factor_confirmed')) {
+        // If user has 2FA enabled AND confirmed, but not confirmed in this session
+        if ($user->hasEnabledTwoFactorAuthentication() && $user->hasConfirmedTwoFactorAuthentication() && !$request->session()->has('two_factor_confirmed')) {
             return redirect()->route('two-factor.login');
         }
 
