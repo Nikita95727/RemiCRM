@@ -15,6 +15,8 @@ return new class extends Migration
             $table->text('two_factor_secret')->nullable();
             $table->text('two_factor_recovery_codes')->nullable();
             $table->timestamp('two_factor_confirmed_at')->nullable();
+            $table->boolean('two_factor_setup_completed')->default(false);
+            $table->boolean('two_factor_enabled_by_user')->default(true);
         });
     }
 
@@ -28,6 +30,8 @@ return new class extends Migration
                 'two_factor_secret',
                 'two_factor_recovery_codes',
                 'two_factor_confirmed_at',
+                'two_factor_setup_completed',
+                'two_factor_enabled_by_user',
             ]);
         });
     }

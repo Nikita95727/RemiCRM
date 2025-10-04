@@ -24,6 +24,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
+        'two_factor_setup_completed',
+        'two_factor_enabled_by_user',
     ];
 
     /**
@@ -50,6 +52,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'two_factor_recovery_codes' => 'array',
+            'two_factor_setup_completed' => 'boolean',
+            'two_factor_enabled_by_user' => 'boolean',
         ];
     }
 
@@ -58,7 +62,25 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function hasTwoFactorEnabled(): bool
     {
-        return !is_null($this->two_factor_secret) && !is_null($this->two_factor_confirmed_at);
+        return !is_null($this->two_factor_secret) 
+            && !is_null($this->two_factor_confirmed_at)
+            && $this->two_factor_enabled_by_user;
+    }
+
+    /**
+     * Check if user needs to setup 2FA for the first time.
+     */
+    public function needsTwoFactorSetup(): bool
+    {
+        return !$this->two_factor_setup_completed;
+    }
+
+    /**
+     * Check if 2FA is disabled by user choice.
+     */
+    public function hasTwoFactorDisabled(): bool
+    {
+        return !$this->two_factor_enabled_by_user;
     }
 
     /**
