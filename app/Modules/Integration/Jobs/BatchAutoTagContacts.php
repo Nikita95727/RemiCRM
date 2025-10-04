@@ -231,43 +231,45 @@ class BatchAutoTagContacts implements ShouldQueue
     /**
      * Generate fallback tag based on contact name when no messages available
      * Uses keyword matching on contact name/username
+     * 
+     * IMPORTANT: Uses word boundaries (\b) to avoid false positives like "Vladislav" matching "ad"
      */
     private function generateFallbackTag(Contact $contact): ?string
     {
         $name = mb_strtolower($contact->name, 'UTF-8');
         
-        // Banking keywords
-        if (preg_match('/(bank|mono|privat|pumb|raiff|alpha|finance|wallet|pay)/ui', $name)) {
+        // Banking keywords - using word boundaries to match whole words only
+        if (preg_match('/\b(bank|banking|mono|monobank|privat|privatbank|pumb|raiff|raiffeisen|alpha|finance|financial|wallet|payment)\b/ui', $name)) {
             return 'banking';
         }
         
-        // Crypto keywords
-        if (preg_match('/(crypto|bitcoin|btc|eth|coin|token|blockchain|ton|pocket|hot|cold)/ui', $name)) {
+        // Crypto keywords - specific crypto terms
+        if (preg_match('/\b(crypto|bitcoin|btc|eth|ethereum|coin|token|blockchain|ton|toncoin|binance|coinbase|usdt|nft)\b/ui', $name)) {
             return 'crypto';
         }
         
-        // Gaming keywords
-        if (preg_match('/(game|gaming|poker|casino|play|pixel|hamster|tap|clicker)/ui', $name)) {
+        // Gaming keywords - gaming-specific terms
+        if (preg_match('/\b(game|games|gaming|gamer|poker|casino|play|pixel|hamster|kombat|tap|tapper|clicker)\b/ui', $name)) {
             return 'gaming';
         }
         
-        // Business keywords
-        if (preg_match('/(llc|ltd|inc|corp|company|group|team|support|service|official)/ui', $name)) {
-            return 'business';
-        }
-        
-        // Bot keywords
-        if (preg_match('/(bot|_bot|assistant|helper|notify)/ui', $name)) {
+        // Bot keywords - _bot is common Telegram bot suffix
+        if (preg_match('/(_bot\b|bot$|\bbot\b|assistant|helper|notify|notification)/ui', $name)) {
             return 'bot';
         }
         
+        // Business keywords - company identifiers
+        if (preg_match('/\b(llc|ltd|inc|corp|corporation|company|group|team|support|service|official)\b/ui', $name)) {
+            return 'business';
+        }
+        
         // Technology keywords
-        if (preg_match('/(dev|tech|code|api|software|app|digital)/ui', $name)) {
+        if (preg_match('/\b(dev|developer|tech|technology|code|coding|api|software|app|application|digital|it)\b/ui', $name)) {
             return 'technology';
         }
         
-        // Advertising keywords
-        if (preg_match('/(ad|ads|promo|marketing|campaign|advertising)/ui', $name)) {
+        // Advertising keywords - use word boundaries to prevent "Vladislav" -> "ad" false positive
+        if (preg_match('/\b(ads|advert|advertising|advertisement|promo|promotion|marketing|campaign)\b/ui', $name)) {
             return 'advertising';
         }
         
