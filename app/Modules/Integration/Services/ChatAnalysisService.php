@@ -239,8 +239,9 @@ class ChatAnalysisService
             // Use direct path to venv python (more reliable than activating venv)
             $venvPython = $crmBackendRoot . '/venv/bin/python';
             if (file_exists($venvPython)) {
+                // Set NLTK_DATA path for production (www-data user needs access to NLTK data)
                 $command = sprintf(
-                    '%s %s --file %s 2>&1',
+                    'NLTK_DATA=/var/www/nltk_data %s %s --file %s 2>&1',
                     escapeshellarg($venvPython),
                     escapeshellarg($pythonScript),
                     escapeshellarg($tempFile)
@@ -251,7 +252,7 @@ class ChatAnalysisService
                     'expected_venv_path' => $venvPython
                 ]);
                 $command = sprintf(
-                    'python3 %s --file %s 2>&1',
+                    'NLTK_DATA=/var/www/nltk_data python3 %s --file %s 2>&1',
                     escapeshellarg($pythonScript),
                     escapeshellarg($tempFile)
                 );
