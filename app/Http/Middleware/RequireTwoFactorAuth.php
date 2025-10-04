@@ -22,22 +22,37 @@ class RequireTwoFactorAuth
             return $next($request);
         }
 
-        // If user doesn't have 2FA enabled, allow access
-        if (!$user->hasTwoFactorEnabled()) {
+        // If on 2FA settings page, allow access
+        if ($request->routeIs('two-factor.settings')) {
             return $next($request);
         }
 
-        // If already on the 2FA challenge page, allow access
-        if ($request->routeIs('two-factor.challenge')) {
+        // If user needs to complete first-time 2FA setup, redirect to settings
+        if ($user->needsTwoFactorSetup()) {
+            return redirect()->route('two-factor.settings');
+        }
+
+        // If user has disabled 2FA, allow access
+        if ($user->hasTwoFactorDisabled()) {
             return $next($request);
         }
 
-        // If 2FA is already verified in this session, allow access
-        if ($request->session()->get('two_factor_verified', false)) {
-            return $next($request);
+        // If user has 2FA enabled but not disabled by choice
+        if ($user->hasTwoFactorEnabled()) {
+            // If already on the 2FA challenge page, allow access
+            if ($request->routeIs('two-factor.challenge')) {
+                return $next($request);
+            }
+
+            // If 2FA is already verified in this session, allow access
+            if ($request->session()->get('two_factor_verified', false)) {
+                return $next($request);
+            }
+
+            // Redirect to 2FA challenge page
+            return redirect()->route('two-factor.challenge');
         }
 
-        // Redirect to 2FA challenge page
-        return redirect()->route('two-factor.challenge');
+        return $next($request);
     }
 }

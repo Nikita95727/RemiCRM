@@ -13,7 +13,25 @@
             </p>
         </div>
 
-        @if (!auth()->user()->hasTwoFactorEnabled() && !$showingQrCode)
+        @if (auth()->user()->needsTwoFactorSetup())
+            <!-- First Time Setup Required -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            <strong>Action Required:</strong> You must set up two-factor authentication to continue using this account.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if (!auth()->user()->hasTwoFactorEnabled() && !auth()->user()->hasTwoFactorDisabled() && !$showingQrCode)
             <!-- Enable 2FA Button -->
             <div>
                 <p class="text-sm text-gray-600 mb-4">
@@ -21,8 +39,28 @@
                 </p>
                 <button wire:click="enableTwoFactor" 
                         class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                    Enable Two-Factor Authentication
+                    @if(auth()->user()->needsTwoFactorSetup())
+                        Setup Two-Factor Authentication (Required)
+                    @else
+                        Enable Two-Factor Authentication
+                    @endif
                 </button>
+            </div>
+        @endif
+
+        @if (auth()->user()->hasTwoFactorDisabled() && !$showingQrCode)
+            <!-- 2FA Disabled - Show Re-enable Option -->
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">Two-Factor Authentication is Disabled</p>
+                        <p class="text-sm text-gray-600">You have disabled two-factor authentication for your account.</p>
+                    </div>
+                    <button wire:click="enableTwoFactorAgain"
+                            class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                        Re-enable Two-Factor Authentication
+                    </button>
+                </div>
             </div>
         @endif
 

@@ -92,6 +92,8 @@ class TwoFactorAuthentication extends Component
         $user->forceFill([
             'two_factor_recovery_codes' => encrypt(json_encode($this->recoveryCodes)),
             'two_factor_confirmed_at' => now(),
+            'two_factor_setup_completed' => true,
+            'two_factor_enabled_by_user' => true,
         ])->save();
 
         $this->showingQrCode = false;
@@ -138,14 +140,29 @@ class TwoFactorAuthentication extends Component
     public function disableTwoFactor()
     {
         auth()->user()->forceFill([
-            'two_factor_secret' => null,
-            'two_factor_recovery_codes' => null,
-            'two_factor_confirmed_at' => null,
+            'two_factor_enabled_by_user' => false,
         ])->save();
 
-        $this->reset(['secret', 'qrCode', 'recoveryCodes', 'showingQrCode', 'showingRecoveryCodes']);
+        $this->checkCurrentState();
 
-        session()->flash('status', 'Two-factor authentication has been disabled.');
+        session()->flash('status', 'Two-factor authentication has been disabled. You can re-enable it at any time.');
+    }
+
+    public function enableTwoFactorAgain()
+    {
+        $user = auth()->user();
+        
+        // Если 2FA уже была настроена, просто включаем её обратно
+        if ($user->two_factor_setup_completed && $user->two_factor_secret) {
+            $user->forceFill([
+                'two_factor_enabled_by_user' => true,
+            ])->save();
+
+            session()->flash('status', 'Two-factor authentication has been re-enabled!');
+        } else {
+            // Если нет, запускаем процесс настройки
+            $this->enableTwoFactor();
+        }
     }
 
     public function render()
