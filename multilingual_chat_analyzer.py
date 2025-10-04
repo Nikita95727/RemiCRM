@@ -189,6 +189,59 @@ class MultilingualChatAnalyzer:
                 ]
             },
             
+            'payment': {
+                'en': [
+                    'payment', 'pay', 'paid', 'invoice', 'bill', 'receipt', 'money', 'cash',
+                    'wire', 'remittance', 'transaction', 'refund', 'charge', 'fee', 'commission',
+                    'paypal', 'stripe', 'venmo', 'zelle', 'wise', 'revolut', 'payoneer',
+                    'send money', 'receive payment', 'owe', 'debt', 'settle', 'balance',
+                    'payout', 'salary', 'wage', 'compensation', 'reimbursement'
+                ],
+                'ru': [
+                    'платеж', 'оплата', 'оплатить', 'заплатить', 'счет', 'инвойс', 'деньги',
+                    'наличные', 'перевод', 'переведу', 'перевёл', 'перевести', 'транзакция',
+                    'возврат', 'комиссия', 'тарифы', 'должен', 'долг', 'задолженность',
+                    'выплата', 'зарплата', 'гонорар', 'вознаграждение', 'компенсация',
+                    'чек', 'квитанция', 'расчет', 'оплачено', 'погасить', 'отправь деньги'
+                ],
+                'es': [
+                    'pago', 'pagar', 'pagado', 'factura', 'recibo', 'dinero', 'efectivo',
+                    'transferencia', 'transacción', 'reembolso', 'cargo', 'comisión',
+                    'enviar dinero', 'recibir pago', 'deber', 'deuda', 'saldar', 'saldo'
+                ],
+                'fr': [
+                    'paiement', 'payer', 'payé', 'facture', 'reçu', 'argent', 'espèces',
+                    'virement', 'transaction', 'remboursement', 'frais', 'commission',
+                    'envoyer argent', 'recevoir paiement', 'devoir', 'dette', 'régler', 'solde'
+                ],
+                'de': [
+                    'zahlung', 'bezahlen', 'bezahlt', 'rechnung', 'quittung', 'geld', 'bargeld',
+                    'überweisung', 'transaktion', 'rückerstattung', 'gebühr', 'provision',
+                    'geld senden', 'zahlung erhalten', 'schulden', 'schuld', 'begleichen', 'saldo'
+                ],
+                'zh': [
+                    '支付', '付款', '已付', '发票', '账单', '收据', '钱', '现金',
+                    '汇款', '交易', '退款', '费用', '佣金', '发送钱', '收到付款', '欠', '债务', '结算', '余额'
+                ],
+                'ja': [
+                    '支払い', '支払う', '支払済み', '請求書', '領収書', 'お金', '現金',
+                    '送金', '取引', '返金', '手数料', 'コミッション', '送金する', '支払いを受ける', '借り', '債務', '決済', '残高'
+                ],
+                'uk': [
+                    'платіж', 'оплата', 'оплатити', 'заплатити', 'рахунок', 'інвойс', 'гроші',
+                    'готівка', 'переказ', 'переведу', 'переказати', 'транзакція',
+                    'повернення', 'комісія', 'борг', 'заборгованість', 'виплата', 'зарплата',
+                    'гонорар', 'винагорода', 'компенсація', 'чек', 'квитанція', 'розрахунок',
+                    'оплачено', 'погасити', 'відправ гроші', 'баланс'
+                ],
+                'be': [
+                    'плацёж', 'аплата', 'аплаціць', 'заплаціць', 'рахунак', 'грошы',
+                    'гатоўка', 'перавод', 'перавесці', 'транзакцыя', 'вяртанне',
+                    'камісія', 'доўг', 'выплата', 'зарплата', 'гонарар', 'узнагарода',
+                    'чэк', 'квітанцыя', 'разлік', 'аплочана', 'пагасіць', 'адправіць грошы'
+                ]
+            },
+            
             'technology': {
                 'en': [
                     'technology', 'tech', 'software', 'development', 'programming', 'coding',
