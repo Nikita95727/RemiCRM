@@ -27,7 +27,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequireTwoFactorAuth::class])->g
     Route::post('/telegram/connect', [TelegramController::class, 'connect'])->name('telegram.connect');
 
     // Two-Factor Authentication Settings
-    Route::get('/two-factor', \App\Livewire\TwoFactorAuthentication::class)->name('two-factor.settings');
+    Route::view('/two-factor', 'two-factor-settings')->name('two-factor.settings');
 });
 
 require __DIR__.'/auth.php';

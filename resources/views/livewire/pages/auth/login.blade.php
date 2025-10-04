@@ -20,7 +20,8 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        $this->redirect(route('dashboard'), navigate: true);
+        // Use full page redirect to allow middleware to intercept
+        return redirect()->intended(route('dashboard'));
     }
 }; ?>
 
