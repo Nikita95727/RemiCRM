@@ -406,20 +406,9 @@ class UnipileService
         $batchCount = 0;
         $maxBatches = 3; // Maximum 3 batches = 150 messages max (enough for analysis, low memory)
 
-        Log::info('Starting optimized message retrieval for analysis', [
-            'account_id' => $accountId,
-            'chat_id' => $chatId,
-            'max_messages' => $maxMessages,
-        ]);
-
         do {
             $batchCount++;
             if ($batchCount > $maxBatches) {
-                Log::info('Reached batch limit (enough for analysis)', [
-                    'account_id' => $accountId,
-                    'chat_id' => $chatId,
-                    'messages_retrieved' => $totalRetrieved,
-                ]);
                 break;
             }
 
@@ -435,11 +424,6 @@ class UnipileService
             $batchMessages = $batchResult['messages'] ?? [];
 
             if (empty($batchMessages)) {
-                Log::debug('No more messages available from API', [
-                    'chat_id' => $chatId,
-                    'batch' => $batchCount,
-                    'total_retrieved' => $totalRetrieved,
-                ]);
                 break;
             }
 
@@ -447,14 +431,6 @@ class UnipileService
             $allMessages = array_merge($allMessages, $batchMessages);
             $totalRetrieved += count($batchMessages);
             $cursor = $batchResult['cursor'] ?? null;
-
-            Log::debug('Retrieved message batch', [
-                'chat_id' => $chatId,
-                'batch' => $batchCount,
-                'batch_size' => count($batchMessages),
-                'total_retrieved' => $totalRetrieved,
-                'has_cursor' => !empty($cursor),
-            ]);
 
             // Stop if no more pages or reached limit
             if ($totalRetrieved >= $maxMessages || empty($cursor)) {
@@ -465,13 +441,6 @@ class UnipileService
             unset($batchResult);
 
         } while ($cursor && $totalRetrieved < $maxMessages);
-
-        Log::info('Completed message retrieval for analysis', [
-            'account_id' => $accountId,
-            'chat_id' => $chatId,
-            'total_messages' => count($allMessages),
-            'batches_used' => $batchCount,
-        ]);
 
         return [
             'messages' => $allMessages,

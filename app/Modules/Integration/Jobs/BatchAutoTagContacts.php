@@ -94,12 +94,6 @@ class BatchAutoTagContacts implements ShouldQueue
 
         foreach ($contacts->chunk($this->batchSize) as $batch) {
             $batchNumber++;
-            
-            Log::info("🏷️ Processing tagging batch {$batchNumber}", [
-                'batch_size' => $batch->count(),
-                'progress' => "{$totalProcessed}/{$totalContacts}",
-            ]);
-
             $batchTagged = 0;
 
             foreach ($batch as $contact) {
@@ -121,19 +115,9 @@ class BatchAutoTagContacts implements ShouldQueue
                 }
             }
 
-            Log::info("✅ Batch {$batchNumber} completed", [
-                'processed' => $batch->count(),
-                'tagged' => $batchTagged,
-                'total_progress' => "{$totalProcessed}/{$totalContacts}",
-                'total_tagged' => $totalTagged,
-            ]);
-
             // Memory cleanup after each contact for low-memory servers
             unset($batch);
             gc_collect_cycles();
-
-            // More frequent cleanup for memory-constrained environments
-            Log::debug("🧹 Memory cleanup after batch {$batchNumber}");
 
             // Small delay between contacts to reduce server load
             usleep(100000); // 100ms pause between each contact
@@ -157,9 +141,6 @@ class BatchAutoTagContacts implements ShouldQueue
             $integration = $contact->integrations->first();
             
             if (!$integration) {
-                Log::debug('No integration found for contact', [
-                    'contact_id' => $contact->id,
-                ]);
                 return false;
             }
 
@@ -175,22 +156,10 @@ class BatchAutoTagContacts implements ShouldQueue
 
             // For Gmail or if no messages found, try fallback tagging by name
             if (empty($messages['messages']) && $this->account->provider->value !== 'google_oauth') {
-                Log::debug('No messages found for contact, trying fallback tagging by name', [
-                    'contact_id' => $contact->id,
-                    'provider' => $this->account->provider->value,
-                    'total_messages' => $messages['total'] ?? 0,
-                ]);
-                
                 // Try to tag based on contact name or username as fallback
                 $tag = $this->generateFallbackTag($contact);
                 if ($tag) {
                     $contact->update(['tags' => [$tag]]);
-                    Log::debug('✅ Contact tagged by fallback (name-based)', [
-                        'contact_id' => $contact->id,
-                        'contact_name' => $contact->name,
-                        'tag' => $tag,
-                        'method' => 'fallback',
-                    ]);
                     return true;
                 }
                 
@@ -207,15 +176,6 @@ class BatchAutoTagContacts implements ShouldQueue
 
             if ($tag) {
                 $contact->update(['tags' => [$tag]]);
-
-                Log::debug('✅ Contact tagged successfully', [
-                    'contact_id' => $contact->id,
-                    'contact_name' => $contact->name,
-                    'tag' => $tag,
-                    'messages_analyzed' => count($messages['messages']),
-                    'batches_used' => $messages['batches_used'] ?? 1,
-                ]);
-
                 return true;
             }
 
