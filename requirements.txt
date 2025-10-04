@@ -1,0 +1,8 @@
+scikit-learn
+nltk
+numpy
+langdetect
+polyglot
+sentence-transformers
+transformers
+torch
