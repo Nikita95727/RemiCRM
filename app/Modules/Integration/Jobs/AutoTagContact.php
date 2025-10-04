@@ -61,10 +61,11 @@ class AutoTagContact implements ShouldQueue
                 'account_id' => $accountId,
             ]);
 
-            // Try to get messages from the chat
-            $messages = $unipileService->listChatMessages($accountId, $chatId, 1000);
+            // Use optimized method for analysis (100 messages max, memory efficient)
+            // This retrieves recent messages in small batches with cursor pagination
+            $messagesResult = $unipileService->getMessagesForAnalysis($accountId, $chatId, 100);
 
-            if (empty($messages['messages'])) {
+            if (empty($messagesResult['messages'])) {
                 Log::info('AutoTagContact: No messages found, skipping tagging', [
                     'contact_id' => $contact->id,
                     'contact_name' => $contact->name,
@@ -74,11 +75,12 @@ class AutoTagContact implements ShouldQueue
 
             Log::info('AutoTagContact: Found messages, analyzing', [
                 'contact_id' => $contact->id,
-                'message_count' => count($messages['messages']),
+                'message_count' => count($messagesResult['messages']),
+                'batches_used' => $messagesResult['batches_used'] ?? 0,
             ]);
 
             // Analyze messages and get best tag
-            $bestTag = $chatAnalysisService->analyzeChatMessages($messages['messages']);
+            $bestTag = $chatAnalysisService->analyzeChatMessages($messagesResult['messages']);
 
             if ($bestTag) {
                 $contactRepository->update($contact, ['tags' => [$bestTag]]);

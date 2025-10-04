@@ -391,9 +391,102 @@ class UnipileService
      * @return array<string, mixed>
      */
     /**
+     * Get chat messages optimized for tagging analysis
+     * Only retrieves the most recent messages needed for accurate categorization
+     * 
+     * @param int $maxMessages Maximum messages to retrieve (default: 100 - optimal for analysis)
+     * @param int $batchSize Messages per API request (default: 50 - memory efficient)
+     * @return array
+     */
+    public function getMessagesForAnalysis(string $accountId, string $chatId, int $maxMessages = 100): array
+    {
+        $allMessages = [];
+        $cursor = null;
+        $totalRetrieved = 0;
+        $batchCount = 0;
+        $maxBatches = 3; // Maximum 3 batches = 150 messages max (enough for analysis, low memory)
+
+        Log::info('Starting optimized message retrieval for analysis', [
+            'account_id' => $accountId,
+            'chat_id' => $chatId,
+            'max_messages' => $maxMessages,
+        ]);
+
+        do {
+            $batchCount++;
+            if ($batchCount > $maxBatches) {
+                Log::info('Reached batch limit (enough for analysis)', [
+                    'account_id' => $accountId,
+                    'chat_id' => $chatId,
+                    'messages_retrieved' => $totalRetrieved,
+                ]);
+                break;
+            }
+
+            // Calculate remaining messages needed
+            $remainingMessages = $maxMessages - $totalRetrieved;
+            if ($remainingMessages <= 0) {
+                break;
+            }
+
+            // Request batch (API max is 250, but we use smaller batches for memory efficiency)
+            $batchSize = min(50, $remainingMessages);
+            $batchResult = $this->listChatMessages($accountId, $chatId, $batchSize, $cursor);
+            $batchMessages = $batchResult['messages'] ?? [];
+
+            if (empty($batchMessages)) {
+                Log::debug('No more messages available from API', [
+                    'chat_id' => $chatId,
+                    'batch' => $batchCount,
+                    'total_retrieved' => $totalRetrieved,
+                ]);
+                break;
+            }
+
+            // Merge batch (memory efficient - small batches)
+            $allMessages = array_merge($allMessages, $batchMessages);
+            $totalRetrieved += count($batchMessages);
+            $cursor = $batchResult['cursor'] ?? null;
+
+            Log::debug('Retrieved message batch', [
+                'chat_id' => $chatId,
+                'batch' => $batchCount,
+                'batch_size' => count($batchMessages),
+                'total_retrieved' => $totalRetrieved,
+                'has_cursor' => !empty($cursor),
+            ]);
+
+            // Stop if no more pages or reached limit
+            if ($totalRetrieved >= $maxMessages || empty($cursor)) {
+                break;
+            }
+
+            // Cleanup for memory
+            unset($batchResult);
+
+        } while ($cursor && $totalRetrieved < $maxMessages);
+
+        Log::info('Completed message retrieval for analysis', [
+            'account_id' => $accountId,
+            'chat_id' => $chatId,
+            'total_messages' => count($allMessages),
+            'batches_used' => $batchCount,
+        ]);
+
+        return [
+            'messages' => $allMessages,
+            'total' => count($allMessages),
+            'batches_used' => $batchCount,
+        ];
+    }
+
+    /**
      * Get all chat messages with pagination for memory efficiency
-     * @param int $maxMessages Maximum total messages to retrieve (default: 2000)
-     * @param int $batchSize Messages per request (default: 250)
+     * USE ONLY WHEN YOU REALLY NEED ALL MESSAGES (e.g., export, detailed analysis)
+     * For tagging, use getMessagesForAnalysis() instead
+     * 
+     * @param int $maxMessages Maximum total messages to retrieve (default: 500)
+     * @param int $batchSize Messages per request (default: 100)
      */
     public function getAllChatMessages(string $accountId, string $chatId, int $maxMessages = 500, int $batchSize = 100): array
     {
@@ -427,7 +520,7 @@ class UnipileService
                 break;
             }
 
-            $batchResult = $this->listChatMessages($accountId, $chatId, $remainingMessages);
+            $batchResult = $this->listChatMessages($accountId, $chatId, $remainingMessages, $cursor);
             $batchMessages = $batchResult['messages'] ?? [];
 
             if (empty($batchMessages)) {
@@ -438,7 +531,7 @@ class UnipileService
             // Add to collection (memory efficient)
             $allMessages = array_merge($allMessages, $batchMessages);
             $totalRetrieved += count($batchMessages);
-            $cursor = $batchResult['cursor'];
+            $cursor = $batchResult['cursor'] ?? null;
 
             Log::debug('Retrieved message batch', [
                 'account_id' => $accountId,
@@ -449,8 +542,8 @@ class UnipileService
                 'has_cursor' => !empty($cursor),
             ]);
 
-            // Stop if we've reached the limit
-            if ($totalRetrieved >= $maxMessages) {
+            // Stop if we've reached the limit or no more cursor
+            if ($totalRetrieved >= $maxMessages || empty($cursor)) {
                 break;
             }
 
@@ -458,6 +551,9 @@ class UnipileService
             if ($batchCount % 5 === 0) {
                 usleep(100000); // 100ms every 5 batches
             }
+
+            // Cleanup for memory
+            unset($batchResult);
 
         } while ($cursor && $totalRetrieved < $maxMessages);
 
@@ -476,15 +572,20 @@ class UnipileService
         ];
     }
 
-    public function listChatMessages(string $accountId, string $chatId, int $limit = 1000): array
+    public function listChatMessages(string $accountId, string $chatId, int $limit = 1000, ?string $cursor = null): array
     {
         try {
             // CORRECT endpoint format: /chats/{chatId}/messages WITHOUT account_id
             // Note: /api/v1/ is already added in makeRequest()
             $endpoint = "/chats/{$chatId}/messages";
             $params = [
-                'limit' => min($limit, 250),
+                'limit' => min($limit, 250), // API maximum is 250
             ];
+
+            // Add cursor for pagination if provided
+            if ($cursor) {
+                $params['cursor'] = $cursor;
+            }
 
             $response = $this->makeRequest('GET', $endpoint, $params);
 
@@ -514,7 +615,11 @@ class UnipileService
                 'status' => $response->status(),
             ]);
 
-            return [];
+            return [
+                'messages' => [],
+                'total' => 0,
+                'cursor' => null,
+            ];
 
         } catch (\Exception $e) {
             Log::error('Unipile API error in listChatMessages: ' . $e->getMessage(), [
@@ -522,7 +627,11 @@ class UnipileService
                 'chat_id' => $chatId,
                 'trace' => $e->getTraceAsString(),
             ]);
-            return [];
+            return [
+                'messages' => [],
+                'total' => 0,
+                'cursor' => null,
+            ];
         }
     }
 
