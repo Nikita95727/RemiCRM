@@ -90,6 +90,11 @@
                                         Profile
                                     </a>
                                     
+                                    <a href="<?php echo e(route('two-factor.index')); ?>" 
+                                       class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors duration-200">
+                                        Two-Factor Auth
+                                    </a>
+                                    
                                     <form method="POST" action="<?php echo e(route('logout')); ?>" class="block">
                                         <?php echo csrf_field(); ?>
                                         <button type="submit" 

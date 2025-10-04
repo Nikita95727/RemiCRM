@@ -32,9 +32,6 @@ Route::middleware('auth')->group(function () {
     Volt::route('confirm-password', 'pages.auth.confirm-password')
         ->name('password.confirm');
 
-    Route::get('two-factor', \App\Livewire\TwoFactor\EnableTwoFactor::class)
-        ->name('two-factor.index');
-
     Route::post('logout', function () {
         auth()->logout();
         request()->session()->invalidate();
