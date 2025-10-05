@@ -27,9 +27,10 @@ class UnipileService
     }
 
     /**
+     * @param string|null $userId Filter accounts by user ID (name field in Unipile)
      * @return array<string, mixed>
      */
-    public function listAccounts(): array
+    public function listAccounts(?string $userId = null): array
     {
         try {
             $response = $this->makeRequest('GET', '/accounts');
@@ -40,7 +41,16 @@ class UnipileService
                 throw $exception;
             }
 
-            return $response->json() ?? [];
+            $result = $response->json() ?? [];
+            
+            // Filter by userId if provided (match against 'name' field in Unipile accounts)
+            if ($userId !== null && isset($result['items']) && is_array($result['items'])) {
+                $result['items'] = array_values(array_filter($result['items'], function ($account) use ($userId) {
+                    return isset($account['name']) && $account['name'] === $userId;
+                }));
+            }
+
+            return $result;
         } catch (UnipileApiException $e) {
             throw $e;
         } catch (\Exception $e) {
@@ -253,6 +263,84 @@ class UnipileService
             'items' => $allEmails,
             'total' => count($allEmails),
         ];
+    }
+
+    /**
+     * Get specific email by ID with full content
+     * @return array<string, mixed>
+     */
+    public function getEmail(string $accountId, string $emailId): array
+    {
+        try {
+            $response = $this->makeRequest('GET', "/emails/{$emailId}", [
+                'account_id' => $accountId,
+            ]);
+
+            if ($response->successful()) {
+                return $response->json() ?? [];
+            }
+
+            Log::warning('Failed to fetch email', [
+                'account_id' => $accountId,
+                'email_id' => $emailId,
+                'status' => $response->status(),
+            ]);
+
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Unipile API error in getEmail', [
+                'account_id' => $accountId,
+                'email_id' => $emailId,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return [];
+        }
+    }
+
+    /**
+     * Get emails for analysis (last N emails from specific contact)
+     * Similar to getMessagesForAnalysis but for emails
+     * @return array<string, mixed>
+     */
+    public function getEmailsForAnalysis(string $accountId, string $contactEmail, int $maxEmails = 50): array
+    {
+        try {
+            // Get recent emails from/to this contact
+            $response = $this->makeRequest('GET', '/emails', [
+                'account_id' => $accountId,
+                'limit' => $maxEmails,
+                'sort' => '-date',
+                // Note: Unipile may support filtering by email, but we'll filter in code
+            ]);
+
+            if (!$response->successful()) {
+                return ['items' => [], 'total' => 0];
+            }
+
+            $allEmails = $response->json()['items'] ?? [];
+            
+            // Filter emails involving this contact
+            $relevantEmails = array_filter($allEmails, function($email) use ($contactEmail) {
+                $fromEmail = $email['from_attendee']['identifier'] ?? '';
+                $toEmails = array_column($email['to_attendees'] ?? [], 'identifier');
+                
+                return $fromEmail === $contactEmail || in_array($contactEmail, $toEmails);
+            });
+
+            return [
+                'items' => array_values($relevantEmails),
+                'total' => count($relevantEmails),
+            ];
+        } catch (\Exception $e) {
+            Log::error('Unipile API error in getEmailsForAnalysis', [
+                'account_id' => $accountId,
+                'contact_email' => $contactEmail,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return ['items' => [], 'total' => 0];
+        }
     }
 
     /**

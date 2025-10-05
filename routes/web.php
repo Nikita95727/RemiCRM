@@ -13,7 +13,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', \App\Http\Middleware\RequireTwoFactorAuth::class])->group(function () {
     Route::view('/contacts', 'contacts')->name('contacts');
     Route::get('/contacts/search', [ContactSearchController::class, 'search'])->name('contacts.search');
-    Route::view('/integration/waiting', 'integration-waiting')->name('integration.waiting');
+    Route::get('/integration/waiting', [\App\Http\Controllers\IntegrationWaitingController::class, 'show'])->name('integration.waiting');
     Route::view('/telegram/connect', 'telegram-connect')->name('telegram.connect.form');
     Route::view('/profile', 'profile')->name('profile');
 

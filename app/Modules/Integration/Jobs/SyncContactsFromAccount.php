@@ -207,20 +207,31 @@ class SyncContactsFromAccount implements ShouldQueue
                     $savedContacts[] = $contact;
                 }
 
-                // Create integration record with chat_id for message fetching
+                // Create or update integration record with chat_id for message fetching
                 $contact = $savedContacts[array_key_last($savedContacts)];
+                $externalId = $contactDTO->chatId ?? $contactDTO->providerId ?? 'unknown';
                 
-                Log::debug('Creating integration', [
-                    'contact_name' => $contact->name,
-                    'chatId' => $contactDTO->chatId,
-                    'providerId' => $contactDTO->providerId,
-                    'final_external_id' => $contactDTO->chatId ?? $contactDTO->providerId ?? 'unknown',
-                ]);
+                // Check if integration already exists
+                $existingIntegration = $contact->integrations()
+                    ->where('integrated_account_id', $this->account->id)
+                    ->first();
                 
-                $contact->integrations()->create([
-                    'integrated_account_id' => $this->account->id,
-                    'external_id' => $contactDTO->chatId ?? $contactDTO->providerId ?? 'unknown',
-                ]);
+                if (!$existingIntegration) {
+                    Log::debug('Creating new integration', [
+                        'contact_name' => $contact->name,
+                        'external_id' => $externalId,
+                    ]);
+                    
+                    $contact->integrations()->create([
+                        'integrated_account_id' => $this->account->id,
+                        'external_id' => $externalId,
+                    ]);
+                } else {
+                    // Update external_id if changed
+                    if ($existingIntegration->external_id !== $externalId) {
+                        $existingIntegration->update(['external_id' => $externalId]);
+                    }
+                }
 
             } catch (\Exception $e) {
                 Log::error('Failed to save contact', [

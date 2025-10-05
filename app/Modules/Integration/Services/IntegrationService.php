@@ -28,12 +28,21 @@ class IntegrationService implements IntegrationServiceInterface
     public function checkIntegrationStatus(User $user): array
     {
         try {
+            $pendingIntegration = session('pending_integration');
+            $specificAccountId = $pendingIntegration['account_id'] ?? null;
+
             Log::info('IntegrationService: Checking integration status', [
                 'user_id' => $user->id,
+                'specific_account_id' => $specificAccountId,
             ]);
 
-            // Sync accounts from provider
-            $syncedAccounts = $this->syncAccountsFromProvider($user);
+            // If we have a specific account_id from Unipile redirect, sync only that account
+            if ($specificAccountId) {
+                $syncedAccounts = $this->syncSpecificAccount($user, $specificAccountId);
+            } else {
+                // Fallback: Sync all accounts from provider (filtered by user)
+                $syncedAccounts = $this->syncAccountsFromProvider($user);
+            }
 
             // Get active accounts
             $activeAccounts = $this->getActiveAccounts($user);
@@ -87,6 +96,38 @@ class IntegrationService implements IntegrationServiceInterface
                 'status' => 'error',
                 'message' => 'Error checking integration status',
             ];
+        }
+    }
+
+    /**
+     * Sync a specific account by Unipile account ID
+     * @return Collection<int, IntegratedAccount>
+     */
+    private function syncSpecificAccount(User $user, string $unipileAccountId): Collection
+    {
+        try {
+            // Fetch specific account from Unipile
+            $accountData = $this->unipileService->getAccount($unipileAccountId);
+            
+            if (empty($accountData)) {
+                Log::warning('IntegrationService: Account not found in Unipile', [
+                    'unipile_account_id' => $unipileAccountId,
+                ]);
+                return collect();
+            }
+
+            // Create or update the account
+            $syncDto = \App\Modules\Integration\DTOs\SyncAccountDTO::fromUnipileData($user->id, $accountData);
+            $account = $this->accountRepository->createOrUpdate($syncDto->toArray());
+
+            return collect([$account]);
+
+        } catch (\Exception $e) {
+            Log::error('IntegrationService: Error syncing specific account', [
+                'unipile_account_id' => $unipileAccountId,
+                'error' => $e->getMessage(),
+            ]);
+            return collect();
         }
     }
 

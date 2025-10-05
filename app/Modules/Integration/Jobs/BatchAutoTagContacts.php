@@ -152,8 +152,8 @@ class BatchAutoTagContacts implements ShouldQueue
 
             // Try to get messages from the chat/email using optimized method
             $messages = match ($this->account->provider->value) {
-                'telegram', 'whatsapp' => $unipileService->getMessagesForAnalysis($accountId, $chatId, 100), // Memory-efficient with cursor pagination
-                'google_oauth' => [], // Gmail doesn't have chat messages in the same format
+                'telegram', 'whatsapp' => $unipileService->getMessagesForAnalysis($accountId, $chatId, 100),
+                'google_oauth' => $this->getGmailMessagesForAnalysis($unipileService, $accountId, $contact),
                 default => [],
             };
 
@@ -169,12 +169,14 @@ class BatchAutoTagContacts implements ShouldQueue
                 return false;
             }
 
-            // For Gmail, we can tag based on email content or domain
-            if ($this->account->provider->value === 'google_oauth') {
+            // Analyze messages for all providers (including Gmail now!)
+            if (!empty($messages['messages'])) {
+                $tag = $chatAnalysisService->analyzeChatMessages($messages['messages']);
+            } elseif ($this->account->provider->value === 'google_oauth') {
+                // Fallback to domain-based tagging for Gmail if no email content
                 $tag = $this->generateGmailTag($contact);
             } else {
-                // Analyze chat messages for Telegram/WhatsApp
-                $tag = $chatAnalysisService->analyzeChatMessages($messages['messages']);
+                $tag = null;
             }
 
             if ($tag) {
@@ -194,7 +196,94 @@ class BatchAutoTagContacts implements ShouldQueue
     }
 
     /**
-     * Generate tag for Gmail contacts based on email domain or content
+     * Get Gmail emails formatted for analysis (similar to chat messages)
+     */
+    private function getGmailMessagesForAnalysis(UnipileService $unipileService, string $accountId, Contact $contact): array
+    {
+        if (!$contact->email) {
+            return ['messages' => []];
+        }
+
+        try {
+            // Get last 50 emails from/to this contact
+            $emailsData = $unipileService->getEmailsForAnalysis($accountId, $contact->email, 50);
+            
+            if (empty($emailsData['items'])) {
+                Log::info('No emails found for Gmail contact', [
+                    'contact_id' => $contact->id,
+                    'email' => $contact->email,
+                ]);
+                return ['messages' => []];
+            }
+
+            // Transform emails to message format for Python analyzer
+            $messages = [];
+            foreach ($emailsData['items'] as $email) {
+                // Extract text content from email
+                $text = $this->extractEmailText($email);
+                
+                if ($text) {
+                    $messages[] = [
+                        'text' => $text,
+                        'from' => $email['from_attendee']['display_name'] ?? $email['from_attendee']['identifier'] ?? 'unknown',
+                        'date' => $email['date'] ?? null,
+                    ];
+                }
+            }
+
+            Log::info('Gmail emails prepared for analysis', [
+                'contact_id' => $contact->id,
+                'total_emails' => count($emailsData['items']),
+                'messages_extracted' => count($messages),
+            ]);
+
+            return ['messages' => $messages];
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get Gmail emails for analysis', [
+                'contact_id' => $contact->id,
+                'email' => $contact->email,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return ['messages' => []];
+        }
+    }
+
+    /**
+     * Extract text content from email for analysis
+     */
+    private function extractEmailText(array $email): ?string
+    {
+        $parts = [];
+
+        // Add subject (important for context)
+        if (!empty($email['subject'])) {
+            $parts[] = $email['subject'];
+        }
+
+        // Add body text (if available)
+        if (!empty($email['body_text'])) {
+            $parts[] = $email['body_text'];
+        } elseif (!empty($email['body'])) {
+            // Strip HTML if needed
+            $bodyText = strip_tags($email['body']);
+            $parts[] = $bodyText;
+        }
+
+        // Add snippet as fallback
+        if (empty($parts) && !empty($email['snippet'])) {
+            $parts[] = $email['snippet'];
+        }
+
+        $text = implode(' ', $parts);
+        
+        // Limit text length for analysis (first 5000 chars should be enough)
+        return $text ? substr($text, 0, 5000) : null;
+    }
+
+    /**
+     * Generate tag for Gmail contacts based on email domain or content (FALLBACK)
      */
     private function generateGmailTag(Contact $contact): ?string
     {
