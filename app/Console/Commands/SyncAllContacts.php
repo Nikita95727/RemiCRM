@@ -3,8 +3,10 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Modules\Contact\Models\Contact;
 use App\Modules\Integration\Models\IntegratedAccount;
 use App\Modules\Integration\Contracts\ContactSyncServiceInterface;
+use App\Modules\Integration\Jobs\SyncContactsFromAccount;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -13,7 +15,8 @@ class SyncAllContacts extends Command
     protected $signature = 'contacts:sync-all
                             {--user= : Sync contacts for specific user ID only}
                             {--provider= : Sync contacts for specific provider only (telegram, whatsapp, gmail)}
-                            {--force : Force sync even if recently synced}';
+                            {--force : Force sync even if recently synced}
+                            {--sync : Run synchronously without queue (blocks until complete)}';
 
     protected $description = 'Automatically sync contacts from all integrated accounts for all users';
 
@@ -31,6 +34,11 @@ class SyncAllContacts extends Command
             $userFilter = $this->option('user');
             $providerFilter = $this->option('provider');
             $force = $this->option('force');
+            $sync = $this->option('sync');
+
+            if ($sync) {
+                $this->warn('⚠️  Running in SYNCHRONOUS mode - this will block until complete');
+            }
 
             // Get users to sync
             $users = $userFilter
@@ -44,6 +52,8 @@ class SyncAllContacts extends Command
 
             $totalSynced = 0;
             $totalSkipped = 0;
+            $totalContactsCreated = 0;
+            $totalContactsUpdated = 0;
 
             foreach ($users as $user) {
                 $accountsQuery = IntegratedAccount::where('user_id', $user->id)
@@ -67,13 +77,57 @@ class SyncAllContacts extends Command
                     continue;
                 }
 
+                // Progress bar for synchronous mode
+                if ($sync && $accounts->count() > 0) {
+                    $this->output->newLine();
+                    $progressBar = $this->output->createProgressBar($accounts->count());
+                    $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% -- %message%');
+                    $progressBar->setMessage('Starting synchronization...');
+                    $progressBar->start();
+                }
+
                 foreach ($accounts as $account) {
                     try {
-                        $this->contactSyncService->queueContactSync($account);
+                        if ($sync) {
+                            // Count contacts before sync
+                            $contactsBeforeSync = Contact::where('user_id', $user->id)->count();
+                            
+                            // Synchronous execution - run immediately
+                            if (isset($progressBar)) {
+                                $progressBar->setMessage("Syncing {$account->provider->value} account...");
+                            }
+                            
+                            $job = new SyncContactsFromAccount($account);
+                            $job->handle(
+                                app(\App\Modules\Integration\Services\UnipileService::class),
+                                app(\App\Modules\Contact\Contracts\ContactRepositoryInterface::class)
+                            );
+                            
+                            // Count contacts after sync
+                            $contactsAfterSync = Contact::where('user_id', $user->id)->count();
+                            $contactsAdded = $contactsAfterSync - $contactsBeforeSync;
+                            
+                            $totalContactsCreated += max(0, $contactsAdded);
+                            if ($contactsAdded > 0) {
+                                $totalContactsUpdated += 0; // New contacts
+                            } else {
+                                $totalContactsUpdated += abs($contactsAdded); // Estimate updated
+                            }
+                            
+                            if (isset($progressBar)) {
+                                $progressBar->setMessage("✅ {$account->provider->value}: +{$contactsAdded} contacts");
+                                $progressBar->advance();
+                            } else {
+                                $this->info("   ✅ Synced {$account->provider->value}: +{$contactsAdded} contacts");
+                            }
+                        } else {
+                            // Asynchronous execution - queue the job
+                            $this->contactSyncService->queueContactSync($account);
+                            $this->line("   ✅ Queued sync for {$account->provider->value} account");
+                        }
+                        
                         $account->update(['last_sync_at' => now()]);
-
                         $totalSynced++;
-                        $this->line("   ✅ Queued sync for {$account->provider->value} account");
 
                     } catch (\Exception $e) {
                         $this->error("   ❌ Failed to sync {$account->provider->value} account: " . $e->getMessage());
@@ -85,13 +139,29 @@ class SyncAllContacts extends Command
                         ]);
                     }
                 }
+                
+                // Finish progress bar for synchronous mode
+                if ($sync && isset($progressBar)) {
+                    $progressBar->setMessage('Synchronization completed!');
+                    $progressBar->finish();
+                    $this->output->newLine(2);
+                }
             }
 
+            // Summary
+            $this->output->newLine();
             $this->info('🎉 Synchronization completed!');
             $this->info("✅ Synced: {$totalSynced} accounts");
             $this->info("⏭️  Skipped: {$totalSkipped} accounts");
 
-            if ($totalSynced > 0) {
+            if ($sync && $totalSynced > 0) {
+                $this->output->newLine();
+                $this->info('📊 Contact Statistics:');
+                $this->line("   📥 New contacts: {$totalContactsCreated}");
+                $this->line("   🔄 Processed: " . ($totalContactsCreated + $totalContactsUpdated));
+            }
+
+            if ($totalSynced > 0 && !$sync) {
                 $this->info('💡 Contact sync jobs have been queued. Run queue worker to process them.');
             }
 
