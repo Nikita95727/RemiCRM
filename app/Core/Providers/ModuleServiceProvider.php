@@ -35,23 +35,11 @@ class ModuleServiceProvider extends ServiceProvider
             $moduleName = basename($modulePath);
             $providerPath = $modulePath.'/Providers/'.$moduleName.'ServiceProvider.php';
 
-            \Log::info("ModuleServiceProvider: Checking module {$moduleName}", [
-                'module_path' => $modulePath,
-                'provider_path' => $providerPath,
-                'provider_exists' => File::exists($providerPath),
-            ]);
-
             if (File::exists($providerPath)) {
                 $providerClass = "App\\Modules\\{$moduleName}\\Providers\\{$moduleName}ServiceProvider";
 
-                \Log::info('ModuleServiceProvider: Registering provider', [
-                    'provider_class' => $providerClass,
-                    'class_exists' => class_exists($providerClass),
-                ]);
-
                 if (class_exists($providerClass)) {
                     $this->app->register($providerClass);
-                    \Log::info("ModuleServiceProvider: Registered {$providerClass}");
                 }
             }
         }

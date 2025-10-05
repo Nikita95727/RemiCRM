@@ -27,7 +27,10 @@ class BatchAutoTagContacts implements ShouldQueue
     public function __construct(
         private IntegratedAccount $account,
         private int $batchSize = 1 // Process 1 contact at a time for memory efficiency
-    ) {}
+    ) {
+        // Reduce timeout for production memory constraints
+        $this->timeout = 300; // 5 minutes instead of 10
+    }
 
     public function handle(UnipileService $unipileService, ChatAnalysisService $chatAnalysisService, ContactRepositoryInterface $contactRepository): void
     {
