@@ -28,7 +28,21 @@ class SyncAllContacts extends Command
 
     public function handle(): int
     {
+        $startTime = now();
         $this->info('🔄 Starting automatic contact synchronization...');
+        
+        // Detailed start log
+        Log::info('============================================');
+        Log::info('📅 SCHEDULED SYNC STARTED', [
+            'timestamp' => $startTime->toDateTimeString(),
+            'command' => 'contacts:sync-all',
+            'options' => [
+                'user' => $this->option('user'),
+                'provider' => $this->option('provider'),
+                'force' => $this->option('force'),
+                'sync' => $this->option('sync'),
+            ],
+        ]);
 
         try {
             $userFilter = $this->option('user');
@@ -165,14 +179,36 @@ class SyncAllContacts extends Command
                 $this->info('💡 Contact sync jobs have been queued. Run queue worker to process them.');
             }
 
+            // Detailed completion log
+            $endTime = now();
+            $duration = $startTime->diffInSeconds($endTime);
+            
+            Log::info('✅ SCHEDULED SYNC COMPLETED SUCCESSFULLY', [
+                'timestamp' => $endTime->toDateTimeString(),
+                'duration_seconds' => $duration,
+                'accounts_synced' => $totalSynced,
+                'accounts_skipped' => $totalSkipped,
+                'new_contacts' => $totalContactsCreated,
+                'processed_contacts' => $totalContactsCreated + $totalContactsUpdated,
+                'sync_mode' => $sync ? 'synchronous' : 'asynchronous',
+            ]);
+            Log::info('============================================');
+
             return 0;
 
         } catch (\Exception $e) {
             $this->error('❌ Synchronization failed: ' . $e->getMessage());
-            Log::error('Automatic contact sync failed', [
+            
+            $endTime = now();
+            $duration = $startTime->diffInSeconds($endTime);
+            
+            Log::error('❌ SCHEDULED SYNC FAILED', [
+                'timestamp' => $endTime->toDateTimeString(),
+                'duration_seconds' => $duration,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+            Log::info('============================================');
 
             return 1;
         }
