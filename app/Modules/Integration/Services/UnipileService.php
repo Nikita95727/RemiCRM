@@ -20,10 +20,10 @@ class UnipileService
     public function __construct(?string $dsn = null, ?string $token = null, ?string $baseUrl = null)
     {
 
-        $this->dsn = $dsn ?? config('services.unipile.dsn', 'api14.unipile.com:14426');
-        $this->token = $token ?? config('services.unipile.token', 'gHer45qA.4OT9lImpNx1R0ryGFe3xgYYozGE475b3uSJTaMUJlsU=');
+        $this->dsn = $dsn ?? config('services.unipile.dsn', 'api6.unipile.com:13668');
+        $this->token = $token ?? config('services.unipile.token', 'ICFBW6is.8Wb6sX9z+KQhEGiqtb2mKnK2DNX00NwLOATxDAeiBo0=');
 
-        $this->baseUrl = $baseUrl ?: (config('services.unipile.base_url') ?? 'api14.unipile.com:14426');
+        $this->baseUrl = $baseUrl ?: (config('services.unipile.base_url') ?? 'api6.unipile.com:13668');
     }
 
     /**
@@ -42,7 +42,7 @@ class UnipileService
             }
 
             $result = $response->json() ?? [];
-            
+
             // Filter by userId if provided (match against 'name' field in Unipile accounts)
             if ($userId !== null && isset($result['items']) && is_array($result['items'])) {
                 $result['items'] = array_values(array_filter($result['items'], function ($account) use ($userId) {
@@ -293,7 +293,7 @@ class UnipileService
                 'email_id' => $emailId,
                 'error' => $e->getMessage(),
             ]);
-            
+
             return [];
         }
     }
@@ -319,12 +319,12 @@ class UnipileService
             }
 
             $allEmails = $response->json()['items'] ?? [];
-            
+
             // Filter emails involving this contact
             $relevantEmails = array_filter($allEmails, function($email) use ($contactEmail) {
                 $fromEmail = $email['from_attendee']['identifier'] ?? '';
                 $toEmails = array_column($email['to_attendees'] ?? [], 'identifier');
-                
+
                 return $fromEmail === $contactEmail || in_array($contactEmail, $toEmails);
             });
 
@@ -338,7 +338,7 @@ class UnipileService
                 'contact_email' => $contactEmail,
                 'error' => $e->getMessage(),
             ]);
-            
+
             return ['items' => [], 'total' => 0];
         }
     }
@@ -481,7 +481,7 @@ class UnipileService
     /**
      * Get chat messages optimized for tagging analysis
      * Only retrieves the most recent messages needed for accurate categorization
-     * 
+     *
      * @param int $maxMessages Maximum messages to retrieve (default: 100 - optimal for analysis)
      * @param int $batchSize Messages per API request (default: 50 - memory efficient)
      * @return array
@@ -541,7 +541,7 @@ class UnipileService
      * Get all chat messages with pagination for memory efficiency
      * USE ONLY WHEN YOU REALLY NEED ALL MESSAGES (e.g., export, detailed analysis)
      * For tagging, use getMessagesForAnalysis() instead
-     * 
+     *
      * @param int $maxMessages Maximum total messages to retrieve (default: 500)
      * @param int $batchSize Messages per request (default: 100)
      */
@@ -708,6 +708,26 @@ class UnipileService
     }
 
     /**
+     * Get attendee by ID
+     *
+     * @return array<string, mixed>
+     */
+    public function getAttendee(string $attendeeId, string $accountId): array
+    {
+        try {
+            $response = $this->makeRequest('GET', "/attendees/{$attendeeId}", [
+                'account_id' => $accountId,
+            ]);
+
+            return $response->json() ?? [];
+        } catch (\Exception $e) {
+            Log::error('Unipile API error in getAttendee: ' . $e->getMessage());
+
+            return [];
+        }
+    }
+
+    /**
      * @param array<string> $providers
      * @return array<string, mixed>
      */
@@ -715,7 +735,7 @@ class UnipileService
     {
         try {
             $apiUrl = str_starts_with($this->baseUrl, 'http') ? $this->baseUrl : 'https://' . $this->baseUrl;
-            
+
             $data = [
                 'type' => 'create',
                 'providers' => array_map('strtoupper', $providers), // API expects uppercase
