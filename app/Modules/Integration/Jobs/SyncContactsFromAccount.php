@@ -57,7 +57,24 @@ class SyncContactsFromAccount implements ShouldQueue
             ImportStatus::completeImport($this->account->user_id, $this->account->provider->value);
             
             // Start batch tagging immediately after sync completion
-            BatchAutoTagContacts::dispatch($this->account);
+            // BatchAutoTagContacts::dispatch($this->account); // OLD: Queued version
+            
+            // NEW: IMMEDIATE batch tagging for testing
+            Log::info('ContactSyncService: Running IMMEDIATE batch tagging (not queued)', [
+                'account_id' => $this->account->id,
+                'provider' => $this->account->provider,
+            ]);
+            
+            $batchTaggingJob = new BatchAutoTagContacts($this->account);
+            $batchTaggingJob->handle(
+                app(\App\Modules\Integration\Services\UnipileService::class),
+                app(\App\Modules\Contact\Contracts\ContactRepositoryInterface::class)
+            );
+            
+            Log::info('ContactSyncService: IMMEDIATE batch tagging completed', [
+                'account_id' => $this->account->id,
+                'provider' => $this->account->provider,
+            ]);
 
             Log::info('🎉 OPTIMIZED SYNC - Streaming contact sync completed', [
                 'account_id' => $this->account->id,
