@@ -46,7 +46,7 @@ class SyncContactsFromAccount implements ShouldQueue
             ]);
 
             // Start import tracking
-            ImportStatus::startImport($this->account->user_id, $this->account->provider->value);
+            //ImportStatus::startImport($this->account->user_id, $this->account->provider->value);
 
             // Use streaming approach to avoid memory issues
             $this->processContactsInBatches($unipileService, $contactRepository);
@@ -54,23 +54,23 @@ class SyncContactsFromAccount implements ShouldQueue
             $this->account->update(['last_sync_at' => now()]);
 
             // Mark import as completed and start tagging
-            ImportStatus::completeImport($this->account->user_id, $this->account->provider->value);
-            
+            //ImportStatus::completeImport($this->account->user_id, $this->account->provider->value);
+
             // Start batch tagging immediately after sync completion
             // BatchAutoTagContacts::dispatch($this->account); // OLD: Queued version
-            
+
             // NEW: IMMEDIATE batch tagging for testing
             Log::info('ContactSyncService: Running IMMEDIATE batch tagging (not queued)', [
                 'account_id' => $this->account->id,
                 'provider' => $this->account->provider,
             ]);
-            
+
             $batchTaggingJob = new BatchAutoTagContacts($this->account);
             $batchTaggingJob->handle(
                 app(\App\Modules\Integration\Services\UnipileService::class),
                 app(\App\Modules\Contact\Contracts\ContactRepositoryInterface::class)
             );
-            
+
             Log::info('ContactSyncService: IMMEDIATE batch tagging completed', [
                 'account_id' => $this->account->id,
                 'provider' => $this->account->provider,
@@ -85,7 +85,7 @@ class SyncContactsFromAccount implements ShouldQueue
         } catch (\Exception $e) {
             // Mark import as failed
             ImportStatus::failImport($this->account->user_id, $this->account->provider->value, $e->getMessage());
-            
+
             Log::error('OPTIMIZED SYNC - Contact sync error: '.$e->getMessage(), [
                 'account_id' => $this->account->id,
                 'provider' => $this->account->provider,
@@ -104,28 +104,28 @@ class SyncContactsFromAccount implements ShouldQueue
     {
         $transformerFactory = new ContactTransformerFactory();
         $transformer = $transformerFactory->create($this->account->provider->value);
-        
+
         $totalProcessed = 0;
         $totalSaved = 0;
         $batchSize = 25; // Smaller batches for memory efficiency
-        
+
         // Define callback for processing each batch
         $processBatch = function (array $items, int $page, ?string $cursor) use ($transformer, &$totalProcessed, &$totalSaved, $batchSize, $contactRepository): bool {
             try {
                 // Transform batch to contact DTOs
                 $rawData = ['items' => $items];
                 $contactDTOs = $transformer->transform($rawData, $this->account->user_id);
-                
+
                 // Save contacts to database
                 $savedContacts = $this->saveContacts($contactDTOs, $contactRepository);
-                
+
                 $totalProcessed += count($items);
                 $totalSaved += count($savedContacts);
 
                 // Update import progress
                 ImportStatus::updateProgress(
-                    $this->account->user_id, 
-                    $this->account->provider->value, 
+                    $this->account->user_id,
+                    $this->account->provider->value,
                     $totalSaved,
                     "Imported {$totalSaved} contacts..."
                 );
@@ -140,7 +140,7 @@ class SyncContactsFromAccount implements ShouldQueue
 
                 // Force garbage collection after each batch
                 gc_collect_cycles();
-                
+
                 return true; // Continue processing
 
             } catch (\Exception $e) {
@@ -148,7 +148,7 @@ class SyncContactsFromAccount implements ShouldQueue
                     'error' => $e->getMessage(),
                     'items_count' => count($items),
                 ]);
-                
+
                 return true; // Continue with next batch even if this one fails
             }
         };
@@ -211,7 +211,7 @@ class SyncContactsFromAccount implements ShouldQueue
                     // Update existing contact with new sources
                     $existingSources = $existingContact->sources ?? [];
                     $newSources = array_unique(array_merge($existingSources, $contactDTO->sources));
-                    
+
                     $contactRepository->update($existingContact, [
                         'sources' => $newSources,
                         'notes' => $contactDTO->notes ?: $existingContact->notes,
@@ -227,18 +227,18 @@ class SyncContactsFromAccount implements ShouldQueue
                 // Create or update integration record with chat_id for message fetching
                 $contact = $savedContacts[array_key_last($savedContacts)];
                 $externalId = $contactDTO->chatId ?? $contactDTO->providerId ?? 'unknown';
-                
+
                 // Check if integration already exists
                 $existingIntegration = $contact->integrations()
                     ->where('integrated_account_id', $this->account->id)
                     ->first();
-                
+
                 if (!$existingIntegration) {
                     Log::debug('Creating new integration', [
                         'contact_name' => $contact->name,
                         'external_id' => $externalId,
                     ]);
-                    
+
                     $contact->integrations()->create([
                         'integrated_account_id' => $this->account->id,
                         'external_id' => $externalId,
@@ -274,7 +274,7 @@ class SyncContactsFromAccount implements ShouldQueue
 
         do {
             $currentPage++;
-            
+
             try {
                 // Use existing methods based on provider
                 $response = match ($this->account->provider->value) {
@@ -289,7 +289,7 @@ class SyncContactsFromAccount implements ShouldQueue
 
                 // Process batch with callback
                 $shouldContinue = $processBatch($response['items'], $currentPage, $cursor);
-                
+
                 $totalProcessed += count($response['items']);
                 $cursor = $response['cursor'] ?? null;
 
@@ -300,7 +300,7 @@ class SyncContactsFromAccount implements ShouldQueue
 
                 // Memory cleanup
                 unset($response);
-                
+
                 // Small delay to prevent API rate limiting
                 if ($currentPage % 5 === 0) {
                     usleep(100000); // 100ms pause every 5 pages
@@ -312,12 +312,12 @@ class SyncContactsFromAccount implements ShouldQueue
                     'error' => $e->getMessage(),
                     'cursor' => $cursor
                 ];
-                
+
                 Log::error("Manual streaming page {$currentPage} failed", [
                     'error' => $e->getMessage(),
                     'provider' => $this->account->provider->value,
                 ]);
-                
+
                 // Continue with next page on error
                 $cursor = null;
             }
