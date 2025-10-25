@@ -96,3 +96,4 @@ class TestAttendees extends Command
     }
 }
 
+

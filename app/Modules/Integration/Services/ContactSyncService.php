@@ -23,7 +23,23 @@ class ContactSyncService implements ContactSyncServiceInterface
 
     public function queueContactSync(IntegratedAccount $account): void
     {
-        SyncContactsFromAccount::dispatch($account);
+        // IMMEDIATE SYNC for testing - run synchronously instead of queuing
+        Log::info('ContactSyncService: Running IMMEDIATE sync (not queued)', [
+            'account_id' => $account->id,
+            'provider' => $account->provider,
+        ]);
+        
+        // Run the job immediately instead of dispatching to queue
+        $job = new SyncContactsFromAccount($account);
+        $job->handle(
+            app(\App\Modules\Integration\Services\UnipileService::class),
+            app(\App\Modules\Contact\Contracts\ContactRepositoryInterface::class)
+        );
+        
+        Log::info('ContactSyncService: IMMEDIATE sync completed', [
+            'account_id' => $account->id,
+            'provider' => $account->provider,
+        ]);
     }
 
     public function getSyncStatistics(IntegratedAccount $account): array

@@ -42,7 +42,7 @@ class BatchAutoTagContacts implements ShouldQueue
             ]);
 
             // Mark as tagging in progress
-            ImportStatus::setTagging($this->account->user_id, $this->account->provider->value);
+            //ImportStatus::setTagging($this->account->user_id, $this->account->provider->value);
 
             // Get untagged contacts for this account using repository
             $untaggedContacts = $contactRepository->findUntaggedByAccount(
@@ -66,7 +66,7 @@ class BatchAutoTagContacts implements ShouldQueue
             $this->processContactsInBatches($untaggedContacts, $unipileService, $chatAnalysisService);
 
             // Mark tagging as completed
-            ImportStatus::completeImport($this->account->user_id, $this->account->provider->value);
+            //ImportStatus::completeImport($this->account->user_id, $this->account->provider->value);
 
             Log::info('🎉 BATCH TAGGING - Mass tagging completed', [
                 'account_id' => $this->account->id,
@@ -142,7 +142,7 @@ class BatchAutoTagContacts implements ShouldQueue
     {
         try {
             $integration = $contact->integrations->first();
-            
+
             if (!$integration) {
                 return false;
             }
@@ -165,7 +165,7 @@ class BatchAutoTagContacts implements ShouldQueue
                     $contact->update(['tags' => [$tag]]);
                     return true;
                 }
-                
+
                 return false;
             }
 
@@ -207,7 +207,7 @@ class BatchAutoTagContacts implements ShouldQueue
         try {
             // Get last 50 emails from/to this contact
             $emailsData = $unipileService->getEmailsForAnalysis($accountId, $contact->email, 50);
-            
+
             if (empty($emailsData['items'])) {
                 Log::info('No emails found for Gmail contact', [
                     'contact_id' => $contact->id,
@@ -221,7 +221,7 @@ class BatchAutoTagContacts implements ShouldQueue
             foreach ($emailsData['items'] as $email) {
                 // Extract text content from email
                 $text = $this->extractEmailText($email);
-                
+
                 if ($text) {
                     $messages[] = [
                         'text' => $text,
@@ -245,7 +245,7 @@ class BatchAutoTagContacts implements ShouldQueue
                 'email' => $contact->email,
                 'error' => $e->getMessage(),
             ]);
-            
+
             return ['messages' => []];
         }
     }
@@ -277,7 +277,7 @@ class BatchAutoTagContacts implements ShouldQueue
         }
 
         $text = implode(' ', $parts);
-        
+
         // Limit text length for analysis (first 5000 chars should be enough)
         return $text ? substr($text, 0, 5000) : null;
     }
@@ -292,7 +292,7 @@ class BatchAutoTagContacts implements ShouldQueue
         }
 
         $domain = substr(strrchr($contact->email, "@"), 1);
-        
+
         // Common business domains
         $businessDomains = [
             'gmail.com' => 'personal',
@@ -323,58 +323,58 @@ class BatchAutoTagContacts implements ShouldQueue
     /**
      * Generate fallback tag based on contact name when no messages available
      * Uses keyword matching on contact name/username
-     * 
+     *
      * IMPORTANT: Uses word boundaries (\b) to avoid false positives like "Vladislav" matching "ad"
      */
     private function generateFallbackTag(Contact $contact): ?string
     {
         $name = mb_strtolower($contact->name, 'UTF-8');
-        
+
         // Banking keywords - using word boundaries to match whole words only
         if (preg_match('/\b(bank|banking|mono|monobank|privat|privatbank|pumb|raiff|raiffeisen|alpha|finance|financial|wallet|payment)\b/ui', $name)) {
             return 'banking';
         }
-        
+
         // Crypto keywords - specific crypto terms
         if (preg_match('/\b(crypto|bitcoin|btc|eth|ethereum|coin|token|blockchain|ton|toncoin|binance|coinbase|usdt|nft)\b/ui', $name)) {
             return 'crypto';
         }
-        
+
         // Gaming keywords - gaming-specific terms
         if (preg_match('/\b(game|games|gaming|gamer|poker|casino|play|pixel|hamster|kombat|tap|tapper|clicker)\b/ui', $name)) {
             return 'gaming';
         }
-        
+
         // Bot keywords - _bot is common Telegram bot suffix
         if (preg_match('/(_bot\b|bot$|\bbot\b|assistant|helper|notify|notification)/ui', $name)) {
             return 'bot';
         }
-        
+
         // Business keywords - company identifiers
         if (preg_match('/\b(llc|ltd|inc|corp|corporation|company|group|team|support|service|official)\b/ui', $name)) {
             return 'business';
         }
-        
+
         // Technology keywords
         if (preg_match('/\b(dev|developer|tech|technology|code|coding|api|software|app|application|digital|it)\b/ui', $name)) {
             return 'technology';
         }
-        
+
         // Advertising keywords - use word boundaries to prevent "Vladislav" -> "ad" false positive
         if (preg_match('/\b(ads|advert|advertising|advertisement|promo|promotion|marketing|campaign)\b/ui', $name)) {
             return 'advertising';
         }
-        
+
         // If contains @username format or ends with common messenger patterns, likely personal
         if (preg_match('/^@|^[a-z0-9_]+$/ui', $name) && !str_contains($name, ' ')) {
             return 'social';
         }
-        
+
         // If has emoji or special characters, likely personal
         if (preg_match('/[\x{1F300}-\x{1F9FF}]|❤️|♣️|♠️|♥️|♦️/u', $name)) {
             return 'social';
         }
-        
+
         // Default: no tag (better than incorrect tag)
         return null;
     }

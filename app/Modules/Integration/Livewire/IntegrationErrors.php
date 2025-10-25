@@ -62,7 +62,24 @@ class IntegrationErrors extends Component
             ]);
 
             // Dispatch sync job
-            \App\Modules\Integration\Jobs\SyncContactsFromAccount::dispatch($account);
+            // \App\Modules\Integration\Jobs\SyncContactsFromAccount::dispatch($account); // OLD: Queued version
+            
+            // NEW: IMMEDIATE sync for testing
+            \Log::info('IntegrationErrors: Running IMMEDIATE sync (not queued)', [
+                'account_id' => $account->id,
+                'provider' => $account->provider,
+            ]);
+            
+            $job = new \App\Modules\Integration\Jobs\SyncContactsFromAccount($account);
+            $job->handle(
+                app(\App\Modules\Integration\Services\UnipileService::class),
+                app(\App\Modules\Contact\Contracts\ContactRepositoryInterface::class)
+            );
+            
+            \Log::info('IntegrationErrors: IMMEDIATE sync completed', [
+                'account_id' => $account->id,
+                'provider' => $account->provider,
+            ]);
 
             session()->flash('success', "Retry synchronization for {$account->provider->getLabel()} started.");
             $this->loadErrorAccounts();
