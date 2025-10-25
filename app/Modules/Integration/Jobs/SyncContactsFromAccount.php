@@ -39,17 +39,28 @@ class SyncContactsFromAccount implements ShouldQueue
                 return;
             }
 
+            // Check if this is the first sync for this account
+            $isFirstSync = !$this->account->last_sync_at;
+            
             Log::info('🚀 OPTIMIZED STREAMING SYNC - Memory-safe processing', [
                 'account_id' => $this->account->id,
                 'provider' => $this->account->provider,
                 'job_class' => self::class,
+                'is_first_sync' => $isFirstSync,
+            ]);
+
+            // Additional logging for debugging
+            Log::info('🔍 FIRST SYNC DEBUG', [
+                'account_id' => $this->account->id,
+                'last_sync_at' => $this->account->last_sync_at,
+                'is_first_sync' => $isFirstSync,
             ]);
 
             // Start import tracking
             ImportStatus::startImport($this->account->user_id, $this->account->provider->value);
 
             // Use streaming approach to avoid memory issues
-            $this->processContactsInBatches($unipileService, $contactRepository);
+            $this->processContactsInBatches($unipileService, $contactRepository, $isFirstSync);
 
             $this->account->update(['last_sync_at' => now()]);
 
@@ -83,7 +94,7 @@ class SyncContactsFromAccount implements ShouldQueue
     /**
      * Process contacts in batches using streaming approach to avoid memory issues
      */
-    private function processContactsInBatches(UnipileService $unipileService, ContactRepositoryInterface $contactRepository): void
+    private function processContactsInBatches(UnipileService $unipileService, ContactRepositoryInterface $contactRepository, bool $isFirstSync = false): void
     {
         $transformerFactory = new ContactTransformerFactory();
         $transformer = $transformerFactory->create($this->account->provider->value);
@@ -137,7 +148,7 @@ class SyncContactsFromAccount implements ShouldQueue
         };
 
         // Stream data based on provider type using manual pagination
-        $result = $this->streamDataManually($unipileService, $processBatch, $batchSize);
+        $result = $this->streamDataManually($unipileService, $processBatch, $batchSize, $isFirstSync);
 
         Log::info('Streaming sync completed', [
             'provider' => $this->account->provider->value,
@@ -247,7 +258,7 @@ class SyncContactsFromAccount implements ShouldQueue
     /**
      * Manual streaming implementation using existing methods
      */
-    private function streamDataManually(UnipileService $unipileService, callable $processBatch, int $batchSize): array
+    private function streamDataManually(UnipileService $unipileService, callable $processBatch, int $batchSize, bool $isFirstSync = false): array
     {
         $cursor = null;
         $currentPage = 0;
@@ -268,6 +279,13 @@ class SyncContactsFromAccount implements ShouldQueue
 
                 if (empty($response['items'])) {
                     break;
+                }
+
+                // For first sync, trigger full message sync for each chat
+                // NOTE: The /chats/{chat_id}/sync endpoint doesn't exist yet
+                // Using existing methods to get messages instead
+                if ($isFirstSync && in_array($this->account->provider->value, ['telegram', 'whatsapp'])) {
+                    $this->triggerFullChatSync($unipileService, $response['items']);
                 }
 
                 // Process batch with callback
@@ -313,5 +331,68 @@ class SyncContactsFromAccount implements ShouldQueue
             'errors' => $errors,
             'completed' => empty($cursor) || $currentPage >= $maxPages
         ];
+    }
+
+    /**
+     * Trigger full message sync for each chat during first sync
+     * NOTE: Using existing methods since /chats/{chat_id}/sync endpoint doesn't exist
+     */
+    private function triggerFullChatSync(UnipileService $unipileService, array $chats): void
+    {
+        Log::info('🔄 FIRST SYNC - Triggering full message sync for chats', [
+            'account_id' => $this->account->id,
+            'chats_count' => count($chats),
+        ]);
+
+        foreach ($chats as $chat) {
+            $chatId = $chat['id'] ?? null;
+            if (!$chatId) {
+                continue;
+            }
+
+            try {
+                Log::info('🔄 FIRST SYNC - Syncing chat messages', [
+                    'chat_id' => $chatId,
+                    'chat_name' => $chat['name'] ?? 'unnamed',
+                ]);
+
+                // Try the new sync endpoint first
+                $syncResult = $unipileService->syncChatMessages($chatId);
+                
+                if (isset($syncResult['status']) && $syncResult['status'] === 'not_implemented') {
+                    Log::info('🔄 FIRST SYNC - Using fallback method for chat sync', [
+                        'chat_id' => $chatId,
+                        'reason' => 'New sync endpoint not yet implemented',
+                    ]);
+                    
+                    // Use existing method as fallback
+                    $messages = $unipileService->getAllChatMessages(
+                        $this->account->unipile_account_id,
+                        $chatId,
+                        500, // Get up to 500 messages
+                        100  // Batch size
+                    );
+                    
+                    Log::info('✅ FIRST SYNC - Chat sync completed (fallback)', [
+                        'chat_id' => $chatId,
+                        'messages_retrieved' => count($messages['items'] ?? []),
+                        'method' => 'fallback',
+                    ]);
+                } else {
+                    Log::info('✅ FIRST SYNC - Chat sync completed (new endpoint)', [
+                        'chat_id' => $chatId,
+                        'result' => $syncResult,
+                        'method' => 'new_endpoint',
+                    ]);
+                }
+
+            } catch (\Exception $e) {
+                Log::error('❌ FIRST SYNC - Chat sync failed', [
+                    'chat_id' => $chatId,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continue with other chats even if one fails
+            }
+        }
     }
 }

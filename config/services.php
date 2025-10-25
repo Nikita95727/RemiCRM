@@ -36,9 +36,9 @@ return [
     ],
 
     'unipile' => [
-        'dsn' => env('UNIPILE_DSN', 'api6.unipile.com:13668'),
-        'token' => env('UNIPILE_TOKEN', 'ICFBW6is.8Wb6sX9z+KQhEGiqtb2mKnK2DNX00NwLOATxDAeiBo0='),
-        'base_url' => env('UNIPILE_BASE_URL','api6.unipile.com:13668'),
+        'dsn' => env('UNIPILE_DSN', 'api20.unipile.com:15093'),
+        'token' => env('UNIPILE_TOKEN', 'GqGbBM6n.1zbd74/5JnrA05U0stHNxhO5uQZ1bo8Qtt7ipP8rxsM='),
+        'base_url' => env('UNIPILE_BASE_URL','api20.unipile.com:15093'),
     ],
 
 ];

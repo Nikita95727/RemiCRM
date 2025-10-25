@@ -20,10 +20,10 @@ class UnipileService
     public function __construct(?string $dsn = null, ?string $token = null, ?string $baseUrl = null)
     {
 
-        $this->dsn = $dsn ?? config('services.unipile.dsn', 'api6.unipile.com:13668');
-        $this->token = $token ?? config('services.unipile.token', 'ICFBW6is.8Wb6sX9z+KQhEGiqtb2mKnK2DNX00NwLOATxDAeiBo0=');
+        $this->dsn = $dsn ?? config('services.unipile.dsn', 'api20.unipile.com:15093');
+        $this->token = $token ?? config('services.unipile.token', 'GqGbBM6n.1zbd74/5JnrA05U0stHNxhO5uQZ1bo8Qtt7ipP8rxsM=');
 
-        $this->baseUrl = $baseUrl ?: (config('services.unipile.base_url') ?? 'api6.unipile.com:13668');
+        $this->baseUrl = $baseUrl ?: (config('services.unipile.base_url') ?? 'api20.unipile.com:15093');
     }
 
     /**
@@ -806,5 +806,81 @@ class UnipileService
             'DELETE' => $request->delete($url, $data),
             default => throw new \InvalidArgumentException("Unsupported HTTP method: {$method}"),
         };
+    }
+
+    /**
+     * Sync all messages from a chat from the beginning (new endpoint)
+     * This should be used for first-time sync to get complete message history
+     */
+    public function syncChatMessages(string $chatId): array
+    {
+        try {
+            Log::info('UnipileService: Starting full chat sync', [
+                'chat_id' => $chatId,
+                'endpoint' => "/chats/{$chatId}/sync",
+            ]);
+
+            // Use the correct GET endpoint for chat sync
+            $response = $this->makeRequest('GET', "/chats/{$chatId}/sync");
+
+            Log::info('UnipileService: Chat sync response received', [
+                'chat_id' => $chatId,
+                'status' => $response->status(),
+                'successful' => $response->successful(),
+                'response_body' => $response->body(),
+            ]);
+
+            if (!$response->successful()) {
+                // Handle 501 Not Implemented - endpoint exists but not yet implemented
+                if ($response->status() === 501) {
+                    Log::info('UnipileService: Chat sync endpoint not yet implemented (501)', [
+                        'chat_id' => $chatId,
+                        'status' => $response->status(),
+                        'message' => 'Endpoint exists but not yet implemented on server',
+                    ]);
+                    
+                    // Return empty result instead of throwing exception
+                    return [
+                        'status' => 'not_implemented',
+                        'message' => 'Chat sync endpoint not yet implemented',
+                        'chat_id' => $chatId,
+                    ];
+                }
+                
+                $exception = UnipileApiException::fromResponse($response, 'syncChatMessages');
+                Log::error('Unipile API error in syncChatMessages', $exception->getLogContext());
+                throw $exception;
+            }
+
+            $result = $response->json() ?? [];
+
+            Log::info('UnipileService: Chat sync completed', [
+                'chat_id' => $chatId,
+                'result' => $result,
+            ]);
+
+            return $result;
+
+        } catch (UnipileApiException $e) {
+            Log::error('UnipileService: UnipileApiException in syncChatMessages', [
+                'chat_id' => $chatId,
+                'error' => $e->getMessage(),
+                'context' => $e->getLogContext(),
+            ]);
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Unexpected error in syncChatMessages', [
+                'chat_id' => $chatId,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw new UnipileApiException(
+                'Unexpected error in syncChatMessages: ' . $e->getMessage(),
+                500,
+                [],
+                'An unexpected error occurred while syncing chat messages.',
+                $e
+            );
+        }
     }
 }
