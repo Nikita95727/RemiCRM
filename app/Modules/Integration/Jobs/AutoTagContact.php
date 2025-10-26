@@ -18,6 +18,11 @@ use Illuminate\Support\Facades\Log;
 class AutoTagContact implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    
+    /**
+     * The name of the queue the job should be sent to.
+     */
+    public string $queue = 'tagging';
 
     public function __construct(
         private readonly int $contactId

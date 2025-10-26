@@ -23,6 +23,11 @@ class BatchAutoTagContacts implements ShouldQueue
 
     public int $timeout = 600; // 10 minutes for single contact processing
     public int $tries = 2;
+    
+    /**
+     * The name of the queue the job should be sent to.
+     */
+    public string $queue = 'tagging';
 
     public function __construct(
         private IntegratedAccount $account,

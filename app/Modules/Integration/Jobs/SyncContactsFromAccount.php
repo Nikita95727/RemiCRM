@@ -26,6 +26,11 @@ class SyncContactsFromAccount implements ShouldQueue
 
     public int $timeout = 600; // 10 minutes
     public int $tries = 3;
+    
+    /**
+     * The name of the queue the job should be sent to.
+     */
+    public string $queue = 'sync';
 
     public function __construct(
         private IntegratedAccount $account
