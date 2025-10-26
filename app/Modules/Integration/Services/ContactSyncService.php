@@ -28,8 +28,8 @@ class ContactSyncService implements ContactSyncServiceInterface
             'provider' => $account->provider,
         ]);
         
-        // Dispatch job to queue for background processing
-        SyncContactsFromAccount::dispatch($account);
+        // Dispatch job to sync queue for background processing
+        SyncContactsFromAccount::dispatch($account)->onQueue('sync');
         
         Log::info('ContactSyncService: Contact sync job dispatched to queue', [
             'account_id' => $account->id,

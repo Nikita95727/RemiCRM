@@ -26,11 +26,6 @@ class SyncContactsFromAccount implements ShouldQueue
 
     public int $timeout = 600; // 10 minutes
     public int $tries = 3;
-    
-    /**
-     * The name of the queue the job should be sent to.
-     */
-    public string $queue = 'sync';
 
     public function __construct(
         private IntegratedAccount $account
@@ -81,7 +76,7 @@ class SyncContactsFromAccount implements ShouldQueue
                 'provider' => $this->account->provider,
             ]);
 
-            BatchAutoTagContacts::dispatch($this->account);
+            BatchAutoTagContacts::dispatch($this->account)->onQueue('tagging');
 
             Log::info('ContactSyncService: IMMEDIATE batch tagging completed', [
                 'account_id' => $this->account->id,
