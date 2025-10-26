@@ -70,11 +70,7 @@ class IntegrationErrors extends Component
                 'provider' => $account->provider,
             ]);
             
-            $job = new \App\Modules\Integration\Jobs\SyncContactsFromAccount($account);
-            $job->handle(
-                app(\App\Modules\Integration\Services\UnipileService::class),
-                app(\App\Modules\Contact\Contracts\ContactRepositoryInterface::class)
-            );
+            \App\Modules\Integration\Jobs\SyncContactsFromAccount::dispatch($account);
             
             \Log::info('IntegrationErrors: IMMEDIATE sync completed', [
                 'account_id' => $account->id,

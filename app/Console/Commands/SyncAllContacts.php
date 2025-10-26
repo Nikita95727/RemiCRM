@@ -111,11 +111,7 @@ class SyncAllContacts extends Command
                                 $progressBar->setMessage("Syncing {$account->provider->value} account...");
                             }
                             
-                            $job = new SyncContactsFromAccount($account);
-                            $job->handle(
-                                app(\App\Modules\Integration\Services\UnipileService::class),
-                                app(\App\Modules\Contact\Contracts\ContactRepositoryInterface::class)
-                            );
+                            SyncContactsFromAccount::dispatch($account);
                             
                             // Count contacts after sync
                             $contactsAfterSync = Contact::where('user_id', $user->id)->count();

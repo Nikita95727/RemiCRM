@@ -76,12 +76,7 @@ class SyncContactsFromAccount implements ShouldQueue
                 'provider' => $this->account->provider,
             ]);
 
-            $batchTaggingJob = new BatchAutoTagContacts($this->account);
-            $batchTaggingJob->handle(
-                app(\App\Modules\Integration\Services\UnipileService::class),
-                app(\App\Modules\Integration\Services\ChatAnalysisService::class),
-                app(\App\Modules\Contact\Contracts\ContactRepositoryInterface::class)
-            );
+            BatchAutoTagContacts::dispatch($this->account);
 
             Log::info('ContactSyncService: IMMEDIATE batch tagging completed', [
                 'account_id' => $this->account->id,
